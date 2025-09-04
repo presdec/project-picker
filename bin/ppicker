@@ -1,0 +1,488 @@
+#!/usr/bin/env zsh
+# ppicker - Project Picker CLI
+# Provides: init, doctor, --help, --version
+# Works standalone; pairs with project-picker.plugin.zsh
+set -eu
+set -o pipefail 2>/dev/null || true
+# Hard-disable tracing/verbose within this script to avoid leaking debug traces from user env
+unsetopt xtrace 2>/dev/null || true
+unsetopt verbose 2>/dev/null || true
+set +x +v 2>/dev/null || true
+
+# ----------------------------- Constants --------------------------------------
+VERSION="0.1.0"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/project-picker"
+CONFIG_FILE="${CONFIG_DIR}/config.toml"
+
+# Defaults for [global]
+DEFAULT_CACHE_TTL_MIN=10
+DEFAULT_EDITOR="code"         # code|codium|idea|cursor|windsurf|nvim|vim|custom:/path
+DEFAULT_PREVIEW="tree"        # tree|none
+DEFAULT_DEPTH=1
+DEFAULT_EXCLUDES=("node_modules" ".git")
+DEFAULT_INCLUDE_WS="true"
+
+# ----------------------------- Helpers ----------------------------------------
+have() { command -v "$1" >/dev/null 2>&1; }
+err()  { print -r -- "ppicker: $*" >&2; }
+note() { print -r -- "$*"; }
+die()  { err "$*"; exit 1; }
+
+expand_path() {
+  # Expand ~ and vars, keep as-is if not resolvable (no existence check)
+  local p="$1"
+  # Support $/path as shorthand for $HOME/path
+  if [[ "$p" == '$/'* ]]; then
+    p="$HOME/${p#$/}"
+  fi
+  eval "print -r -- ${p:q}" 2>/dev/null
+}
+
+yesno() {
+  # yesno "Prompt" default_yes|default_no
+  local prompt="$1" def="${2:-default_yes}" ans
+  local hint="[Y/n]"; [[ "$def" = "default_no" ]] && hint="[y/N]"
+  printf "%s %s " "$prompt" "$hint"
+  read -r ans
+  if [[ -z "$ans" ]]; then
+    [[ "$def" = "default_yes" ]] && return 0 || return 1
+  fi
+  [[ "$ans" = [Yy] || "$ans" = yes ]]
+}
+
+ask() {
+  # ask "Prompt" "default"
+  local prompt="$1" def="${2:-}"
+  local prompt="$1" def="$2"
+  local ans
+  if [[ -n "$def" ]]; then
+    ans="$def"
+    vared -p "$prompt [$def]: " -c ans
+  else
+    vared -p "$prompt: " -c ans
+  fi
+  REPLY="$ans"
+  # Echo the answer for backward-compat command substitution users
+  print -r -- "$ans"
+  return 0
+}
+
+# ask_var var_name "Prompt" "default"
+ask_var() {
+  local __var="$1"; shift
+  local prompt="$1"; shift
+  local def="${1:-}"
+  local val
+  if [[ -n "$def" ]]; then
+    val="$def"
+    vared -p "$prompt [$def]: " -c val
+  else
+    vared -p "$prompt: " -c val
+  fi
+  typeset -g "${__var}=$val"
+}
+
+select_one() {
+  # select_one "Prompt" item1 item2 ... -> echoes selection or empty
+  local prompt="$1"; shift
+  local -a items; items=("$@")
+  if (( ${#items[@]} == 0 )); then print -r -- ""; return; fi
+  if have fzf; then
+    printf '%s\n' "${items[@]}" | fzf --prompt="${prompt} > "
+  else
+    note "$prompt"
+    local i=1; for it in "${items[@]}"; do printf '%2d) %s\n' $i "$it"; ((i++)); done
+    printf "Select number (q to cancel): "; local n; read -r n
+    [[ "$n" == "q" || -z "$n" ]] && { print -r -- ""; return; }
+    if [[ "$n" -ge 1 && "$n" -le ${#items[@]} ]]; then
+      print -r -- "${items[$n]}"
+    else
+      print -r -- ""
+    fi
+  fi
+}
+
+# select_one_var var_name "Prompt" item1 item2 ... (zsh vared-compatible)
+select_one_var() {
+  local __var="$1"; shift
+  local prompt="$1"; shift
+  local -a items; items=("$@")
+  local choice=""
+  # Suppress trace/verbose within this helper to avoid noisy var assignments
+  setopt localoptions
+  unsetopt xtrace verbose
+  if (( ${#items[@]} == 0 )); then
+    typeset -g "${__var}="
+    return 0
+  fi
+  if have fzf; then
+    choice=$(printf '%s\n' "${items[@]}" | fzf --prompt="${prompt} > ")
+  else
+    note "$prompt"
+    local i=1; for it in "${items[@]}"; do printf '%2d) %s\n' $i "$it"; ((i++)); done
+    local n=""
+    vared -p "Select number (q to cancel): " -c n
+    if [[ "$n" == q || -z "$n" ]]; then
+      choice=""
+    elif [[ "$n" -ge 1 && "$n" -le ${#items[@]} ]]; then
+      choice="${items[$n]}"
+    fi
+  fi
+  typeset -g "${__var}=$choice"
+}
+
+editor_menu() {
+  local -a opts=("code" "codium" "idea" "cursor" "windsurf" "nvim" "vim" "custom:/absolute/path/to/editor")
+  local sel; sel=$(select_one "Default editor" "${opts[@]}")
+  [[ -z "$sel" ]] && sel="$DEFAULT_EDITOR"
+  print -r -- "$sel"
+}
+
+normalize_key() {
+  local k="$1"
+  k="${k//[^a-zA-Z0-9]/}"   # only [a-zA-Z0-9]
+  k="${k:l}"                # lowercase
+  print -r -- "$k"
+}
+
+array_to_toml() {
+  # array_to_toml arr[@] -> TOML array literal
+  local -a arr; arr=("${(@P)1}")
+  local first=1 out="["
+  for it in "${arr[@]}"; do
+    local s="${it//\"/\\\"}"
+    if (( first )); then out+="\"$s\""; first=0
+    else out+=", \"$s\""
+    fi
+  done
+  out+="]"
+  print -r -- "$out"
+}
+
+exists_dir_or_ws() { [[ -d "$1" || "$1" == *.code-workspace && -f "$1" ]]; }
+
+suggest_paths() {
+  # Populate suggestions based on common dev folders (existing only)
+  local -a suggestions=()
+  local -a candidates=(
+    "$HOME/work" "$HOME/mywork"
+    "$HOME/dev" "$HOME/dev/*"
+    "$HOME/projects" "$HOME/code"
+    "$HOME/dev/rust" "$HOME/dev/ts" "$HOME/dev/typescript"
+    "$HOME/templates/ts" "$HOME/scratch" "$HOME/src"
+  )
+  local c
+  for c in "${candidates[@]}"; do
+    for p in ${(f)"$(eval print -r -- $c 2>/dev/null)"}; do
+      [[ -d "$p" ]] && suggestions+="$p"
+    done
+  done
+  print -r -- "${(u)suggestions[@]}"  # unique
+}
+
+validate_key_unique() {
+  local k="$1"; shift
+  local -a keys; keys=("${(@P)1}")
+  for x in "${keys[@]}"; do [[ "$x" == "$k" ]] && return 1; done
+  return 0
+}
+
+# ----------------------------- INIT (Wizard) ----------------------------------
+cmd_init() {
+  local BOLD=$'\e[1m' RESET=$'\e[0m' CYAN=$'\e[36m' YELLOW=$'\e[33m' GREEN=$'\e[32m' RED=$'\e[31m' UNDER=$'\e[4m'
+  # Silence xtrace to avoid noisy debug output during wizard; restore on exit
+  setopt localoptions  # make option changes local to this function
+  local __had_xtrace=0
+  if [[ -o xtrace ]]; then __had_xtrace=1; unsetopt xtrace; fi
+  print -r -- "${BOLD}${CYAN}🖥️ Project Picker Setup Wizard${RESET}"
+  print -r -- "${YELLOW}Config path:${RESET} ${UNDER}$CONFIG_FILE${RESET}"
+  mkdir -p "$CONFIG_DIR"
+
+  local ttl
+
+  print -r -- "${BOLD}Cache TTL${RESET} (min): How long to cache results. Default: ${CYAN}$DEFAULT_CACHE_TTL_MIN${RESET}"
+  ask_var ttl "Cache TTL (min)" "$DEFAULT_CACHE_TTL_MIN"
+  [[ -z "$ttl" || "$ttl" -le 0 ]] && ttl="$DEFAULT_CACHE_TTL_MIN"
+  print -r -- "${GREEN}✔ TTL: $ttl min${RESET}"
+
+  # No global editor/preview/depth/excludes/include_ws prompts — rely on plugin defaults.
+
+  # Scopes loop
+  print -r -- "${BOLD}${CYAN}Add Project Scopes${RESET}"
+  print -r -- "${BOLD}Scope${RESET}: For each scope enter: key → label → editor → path (single)."
+  print -r -- "Enter 'q' at scope key to finish."
+  local -a scope_keys scope_labels scope_editors scope_depths scope_excludes scope_incws scope_paths
+  local -a path_suggestions; path_suggestions=($(suggest_paths))
+
+  while true; do
+    print -r -- "${BOLD}${GREEN}New Scope${RESET}"
+    ask_var rawk "Scope key (shortcut, e.g. w, p, pr, pt; q to finish)" ""
+    [[ "$rawk" == q || "$rawk" == Q ]] && { break; }
+    local key; key=$(normalize_key "$rawk")
+    while [[ -z "$key" ]]; do
+      print -r -- "${RED}Key cannot be empty.${RESET}"
+      ask_var rawk "Scope key (shortcut, e.g. w, p, pr, pt; q to finish)" ""
+      [[ "$rawk" == q || "$rawk" == Q ]] && { break 2; }
+      key=$(normalize_key "$rawk")
+    done
+    
+    validate_key_unique "$key" "scope_keys[@]" || { print -r -- "${RED}Key '$key' already added.${RESET}"; continue; }
+    print -r -- "${GREEN}✔ Scope key: $key${RESET}"
+
+  ask_var label "Scope label (display name)" "$key"
+    print -r -- "${GREEN}✔ Scope label: $label${RESET}"
+  local chosen_editor
+  local -a __scope_editor_opts=("code" "codium" "idea" "cursor" "windsurf" "nvim" "vim" "custom:/absolute/path/to/editor")
+  select_one_var chosen_editor "Scope editor" "${__scope_editor_opts[@]}"
+  [[ -z "$chosen_editor" ]] && chosen_editor="$DEFAULT_EDITOR"
+    print -r -- "${GREEN}✔ Scope editor: $chosen_editor${RESET}"
+
+    # Path: Pick one suggestion or enter a single absolute path
+    local chosen_path=""
+    if (( ${#path_suggestions[@]} )); then
+      print -r -- "${CYAN}Pick a path for scope '$key' (choose 'Manual input' for custom)${RESET}"
+      local -a menu; menu=("${path_suggestions[@]}" "Manual input")
+      local pick; select_one_var pick "Select a path" "${menu[@]}"
+      if [[ -n "$pick" ]]; then
+        if [[ "$pick" == "Manual input" ]]; then
+          ask_var manual "Enter absolute path (e.g. ~/mywork)" ""
+          [[ -n "$manual" ]] && chosen_path="$(expand_path "$manual")"
+        else
+          chosen_path="$pick"
+        fi
+      fi
+    fi
+    if [[ -z "$chosen_path" ]]; then
+      ask_var manual2 "Enter absolute path (e.g. ~/work)" ""
+      [[ -n "$manual2" ]] && chosen_path="$(expand_path "$manual2")"
+    fi
+    [[ -n "$chosen_path" ]] || { print -r -- "${RED}No path provided; skipping scope '$key'.${RESET}"; continue; }
+    print -r -- "${GREEN}✔ Path: ${chosen_path}${RESET}"
+
+  ask_var d "Depth (blank=default)" ""
+  if [[ -n "$d" ]]; then print -r -- "${GREEN}✔ Depth: ${d}${RESET}"; else print -r -- "${GREEN}✔ Depth: default${RESET}"; fi
+  ask_var exl "Excludes (comma-separated; blank=default)" ""
+  if [[ -n "$exl" ]]; then print -r -- "${GREEN}✔ Excludes: ${exl}${RESET}"; else print -r -- "${GREEN}✔ Excludes: default${RESET}"; fi
+  local iw; if yesno "Include .code-workspace for this scope? (blank=default)" default_no; then iw="true"; else iw=""; fi
+  if [[ -n "$iw" ]]; then print -r -- "${GREEN}✔ Include workspaces: true${RESET}"; else print -r -- "${GREEN}✔ Include workspaces: default${RESET}"; fi
+
+    scope_keys+="$key"
+    scope_labels+="$label"
+    scope_editors+="$chosen_editor"
+  scope_paths+="$chosen_path"
+    scope_depths+="$d"
+    scope_excludes+="$exl"
+    scope_incws+="$iw"
+
+  # Add another scope? Use 'q' at scope key to finish.
+  done
+
+  (( ${#scope_keys[@]} )) || die "No scopes configured; aborting."
+
+  # Show summary before writing
+  print -r -- ""
+  print -r -- "${BOLD}${CYAN}Summary of Configuration${RESET}"
+  print -r -- "${YELLOW}Global:${RESET}"
+  print -r -- "  cache_ttl_min = $ttl"
+
+  print -r -- "${YELLOW}Scopes:${RESET}"
+  local i=1
+  while (( i <= ${#scope_keys[@]} )); do
+    print -r -- "  [${scope_keys[$i]}] label='${scope_labels[$i]}', editor='${scope_editors[$i]}', paths='${scope_paths[$i]}'"
+    ((i++))
+  done
+
+  # Confirm before writing
+  if [[ -f "$CONFIG_FILE" ]]; then
+    yesno "${RED}Config file exists. Overwrite?${RESET}" default_no || { print -r -- "${RED}Aborted.${RESET}"; return 1; }
+  fi
+
+  # Write TOML
+  {
+  print -r -- "[global]"
+  print -r -- "cache_ttl_min = ${ttl}"
+    print -r -- ""
+
+    local i=1
+    while (( i <= ${#scope_keys[@]} )); do
+      local k="${scope_keys[$i]}"
+      local lbl="${scope_labels[$i]}"
+      local ed="${scope_editors[$i]}"
+      local paths_colon="${scope_paths[$i]}"
+  local -a paths_a; IFS=':' read -rA paths_a <<< "$paths_colon"
+  local paths_arr; paths_arr=$(array_to_toml "paths_a[@]")
+
+      print -r -- "[scopes.${k}]"
+      print -r -- "label = \"${lbl}\""
+      print -r -- "paths = ${paths_arr}"
+      print -r -- "editor = \"${ed}\""
+
+      local d="${scope_depths[$i]}"; [[ -n "$d" ]] && print -r -- "depth = ${d}"
+      local ex="${scope_excludes[$i]}"
+      if [[ -n "$ex" ]]; then
+  local -a ex_a; IFS=',' read -rA ex_a <<< "$ex"
+  local ex_arr; ex_arr=$(array_to_toml "ex_a[@]")
+        print -r -- "excludes = ${ex_arr}"
+      fi
+  local iw="${scope_incws[$i]}"; [[ -n "$iw" ]] && print -r -- "include_workspaces = ${iw}"
+
+      print -r -- ""
+      ((i++))
+    done
+  } >| "$CONFIG_FILE"
+
+  print -r -- "${GREEN}Config written: $CONFIG_FILE${RESET}"
+  print -r -- "${CYAN}Next: source your plugin or run: ppicker doctor${RESET}"
+  # Restore xtrace if it was enabled
+  if (( __had_xtrace )); then setopt xtrace; fi
+}
+
+# ----------------------------- DOCTOR -----------------------------------------
+parse_toml_scopes() {
+  # Echo lines: key|label|paths_colon|editor|depth|excludes_colon|include_ws
+  [[ -f "$CONFIG_FILE" ]] || return 0
+  local section="" line
+    setopt localoptions
+    unsetopt xtrace verbose
+  local k label editor depth excludes include_ws paths_raw
+  while IFS= read -r line; do
+    line="${line%%#*}"
+    [[ -z "${line//[[:space:]]/}" ]] && continue
+    if [[ "$line" == \[*\] ]]; then
+      # flush current
+      if [[ -n "$k" ]]; then
+        print -r -- "${k}|${label}|${paths_raw}|${editor}|${depth}|${excludes}|${include_ws}"
+      fi
+  section="${line#\[}"; section="${section%\]}"
+      k=""; label=""; editor=""; depth=""; excludes=""; include_ws=""; paths_raw=""
+      if [[ "$section" == scopes.* ]]; then
+        k="${section#scopes.}"
+      fi
+      continue
+    fi
+
+    if [[ "$section" == scopes.* && "$line" == *"="* ]]; then
+      local kk="${line%%=*}"; kk="${kk//[[:space:]]/}"
+      local vv="${line#*=}"; vv="${vv##[[:space:]]}"
+      case "$kk" in
+        label)   label="${vv//\"/}" ;;
+        editor)  editor="${vv//\"/}" ;;
+        depth)   depth="${vv//[[:space:]]/}" ;;
+        include_workspaces) include_ws="${vv//[[:space:]]/}" ;;
+        excludes)
+          local raw="${vv#\[}"; raw="${raw%\]}"; raw="${raw//\"/}"; raw="${raw// /}"
+          excludes="${raw//,/":"}"
+          ;;
+        paths)
+          local raw="${vv#\[}"; raw="${raw%\]}"; raw="${raw//\"/}"
+          # normalize commas to colons, strip spaces
+          raw="${raw//,/:}"; raw="${raw// /}"
+          paths_raw="$raw"
+          ;;
+      esac
+    fi
+  done < "$CONFIG_FILE"
+  if [[ -n "$k" ]]; then
+    print -r -- "${k}|${label}|${paths_raw}|${editor}|${depth}|${excludes}|${include_ws}"
+  fi
+}
+
+doctor_deps() {
+  local ok=1
+  local msg="Optional dependencies: fd, fzf, tree."
+  local fallback="If missing, falls back to: fd→find, fzf→menu, tree→none."
+  if ! have fd; then msg="$msg fd missing; "; ok=0; fi
+  if ! have fzf; then msg="$msg fzf missing; "; ok=0; fi
+  if ! have tree; then msg="$msg tree missing; "; ok=0; fi
+  if (( ok )); then
+    note "All optional dependencies present (fd, fzf, tree)."
+  else
+    note "$msg"
+    note "$fallback"
+  fi
+}
+
+doctor_config() {
+  emulate -L zsh
+  setopt localoptions
+  unsetopt xtrace verbose
+  set +x +v 2>/dev/null || true
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    err "No config file at $CONFIG_FILE"
+    note "Run: ppicker init"
+    return 1
+  fi
+  note "Config: $CONFIG_FILE"
+  local any=0
+  # Redirect any potential xtrace output to /dev/null locally
+  local __xfd __xtracefd_saved
+  exec {__xfd}>/dev/null
+  __xtracefd_saved="$XTRACEFD"
+  XTRACEFD=$__xfd
+  while IFS='|' read -r key label paths_colon editor depth excludes include_ws; do
+    emulate -L zsh
+    setopt localoptions
+    unsetopt xtrace verbose
+    set +x +v 2>/dev/null || true
+    any=1
+    [[ -z "$key" ]] && continue
+    note "— Scope '${key}' (${label:-$key})"
+    note "   editor: ${editor:-$DEFAULT_EDITOR}  depth: ${depth:-$DEFAULT_DEPTH}  include_ws: ${include_ws:-$DEFAULT_INCLUDE_WS}"
+    note "   excludes: ${${excludes//:/, }:-${(j:,:)DEFAULT_EXCLUDES}}"
+    (
+      emulate -L zsh
+      setopt localoptions
+      unsetopt xtrace verbose
+      set +x +v 2>/dev/null || true
+      local -a ps; IFS=':' read -rA ps <<< "$paths_colon"
+      local _path
+      for _path in "${ps[@]}"; do
+        local _expanded; _expanded=$(expand_path "$_path" 2>/dev/null)
+        if [[ "$_expanded" != /* && "$_expanded" != "~/"* ]]; then
+          err "   ! path not absolute: $_path"
+        fi
+        if [[ -d "$_expanded" ]]; then
+          note "   ✓ $_expanded"
+        else
+          err "   ! missing: $_expanded"
+        fi
+      done
+    )
+  done < <(parse_toml_scopes)
+  # Restore xtrace fd
+  if [[ -n "$__xtracefd_saved" ]]; then XTRACEFD="$__xtracefd_saved"; else unset XTRACEFD; fi
+  exec {__xfd}>&-
+}
+
+cmd_doctor() {
+  doctor_deps
+  doctor_config || true
+}
+
+# ----------------------------- HELP / VERSION ---------------------------------
+print_help() {
+  cat <<EOF
+ppicker ${VERSION}
+
+Usage:
+  ppicker init          Interactive wizard to create ${CONFIG_FILE}
+  ppicker doctor        Validate config and show dependency fallbacks
+  ppicker --help        Show this help
+  ppicker --version     Show version
+EOF
+}
+
+print_version() { print -r -- "$VERSION"; }
+
+# ----------------------------- Main -------------------------------------------
+main() {
+  local sub="${1:-}"
+  case "$sub" in
+    init)    shift; cmd_init "$@";;
+    doctor)  shift; cmd_doctor "$@";;
+    --help|-h) print_help;;
+    --version|-v) print_version;;
+    *) print_help; [[ -n "$sub" ]] && exit 1 || exit 0;;
+  esac
+}
+main "$@"
