@@ -477,10 +477,14 @@ p_reload() {
   print -r -- "Project Picker plugin reloaded."
 }
 p_doctor() {
-  command zsh "$PP_CONFIG_FILE:h/../bin/ppicker" doctor
+  local plugin_dir
+  plugin_dir="${0:A:h}"
+  command zsh "$plugin_dir/bin/ppicker" doctor
 }
 p_config() {
-  command zsh "$PP_CONFIG_FILE:h/../bin/ppicker" init
+  local plugin_dir
+  plugin_dir="${0:A:h}"
+  command zsh "$plugin_dir/bin/ppicker" init
 }
 
 # Core Actions
