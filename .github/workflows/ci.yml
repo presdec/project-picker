@@ -115,6 +115,6 @@ jobs:
 
       - name: Integration tests for bin/ppicker
         run: |
-          # Run doctor and init commands directly
+          # Run doctor and init commands directly (init uses --defaults for CI)
           zsh bin/ppicker doctor || { echo 'ppicker doctor failed' >&2; exit 1; }
-          zsh bin/ppicker init   || { echo 'ppicker init failed' >&2; exit 1; }
+          zsh bin/ppicker init --defaults || { echo 'ppicker init failed' >&2; exit 1; }

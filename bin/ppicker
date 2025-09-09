@@ -189,6 +189,31 @@ validate_key_unique() {
 
 # ----------------------------- INIT (Wizard) ----------------------------------
 cmd_init() {
+  if [[ "$1" == "--defaults" ]]; then
+    local ttl="$DEFAULT_CACHE_TTL_MIN"
+    local label="${PPICKER_SCOPE_LABEL:-work}"
+    local path="${PPICKER_SCOPE_PATH:-$HOME/work}"
+    local editor="$DEFAULT_EDITOR"
+    local depth="$DEFAULT_DEPTH"
+    local excludes_arr; excludes_arr=$(array_to_toml "DEFAULT_EXCLUDES[@]")
+    local incws="$DEFAULT_INCLUDE_WS"
+    mkdir -p "$CONFIG_DIR"
+    {
+      print -r -- "[global]"
+      print -r -- "cache_ttl_min = ${ttl}"
+      print -r -- ""
+      print -r -- "[scopes.work]"
+      print -r -- "label = \"${label}\""
+      print -r -- "paths = [\"${path}\"]"
+      print -r -- "editor = \"${editor}\""
+      print -r -- "depth = ${depth}"
+      print -r -- "excludes = ${excludes_arr}"
+      print -r -- "include_workspaces = ${incws}"
+      print -r -- ""
+    } >| "$CONFIG_FILE"
+    print -r -- "Non-interactive config written: $CONFIG_FILE"
+    return 0
+  fi
   local BOLD=$'\e[1m' RESET=$'\e[0m' CYAN=$'\e[36m' YELLOW=$'\e[33m' GREEN=$'\e[32m' RED=$'\e[31m' UNDER=$'\e[4m'
   # Silence xtrace to avoid noisy debug output during wizard; restore on exit
   setopt localoptions  # make option changes local to this function
