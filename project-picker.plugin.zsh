@@ -274,6 +274,8 @@ _pp_exclude_args_find_array() {
 }
 
 _pp_list_projects_one_root() {
+  emulate -L zsh
+  setopt localoptions noshwordsplit noglobsubst
   local root="$1" depth="$2" include_ws="$3" excludes="$4"
   if _pp_have fd; then
     local -a ex; _pp_exclude_args_fd_array "$excludes"; ex=("${reply[@]}")
@@ -286,11 +288,11 @@ _pp_list_projects_one_root() {
     local -a exf; _pp_exclude_args_find_array "$excludes"; exf=("${reply[@]}")
   local root_clean="$root"
   [[ "$root_clean" == */ ]] && root_clean="${root_clean%/}"
-  local base_slashes_str="${root_clean//[^/]/}"
-    local base_slashes
-    base_slashes=${#base_slashes_str}
-    local max_slashes=$(( base_slashes + depth ))
-    # Directories up to depth
+  # Count slashes in root_clean without relying on zsh glob character classes (works across option sets)
+  local base_slashes
+  base_slashes=$(printf '%s' "$root_clean" | awk -F/ '{print NF-1}')
+  local max_slashes=$(( base_slashes + depth ))
+    # Directories up to depth (exclude the root itself only if depth==0 logic not needed; md allows root)
     command find "$root_clean" -type d "${exf[@]}" \
       | awk -v md="$max_slashes" '{n=gsub(/\//,"&"); if (n<=md) print $0}'
     # Workspace files up to depth
