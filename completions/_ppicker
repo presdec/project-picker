@@ -1,0 +1,30 @@
+#compdef ppicker
+
+_ppicker() {
+  local -a subcmds
+  subcmds=(
+    'init:Run interactive config wizard'
+    'doctor:Validate config and dependencies'
+    'reload:Reload config and regenerate plugin functions'
+    '--help:Show help'
+    '--version:Show version'
+  )
+  local -a opts
+  opts=(
+    '--help[Show help]'
+    '--version[Show version]'
+  )
+  _arguments \
+    '1:subcommand:((init doctor reload --help --version))' \
+    '*:options:->opts'
+  case $words[1] in
+    init)
+      _files -g '*.toml'
+      ;;
+    doctor|reload)
+      _files -g '*.toml'
+      ;;
+  esac
+}
+
+_ppicker "$@"

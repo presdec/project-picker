@@ -346,7 +346,7 @@ parse_toml_scopes() {
     unsetopt xtrace verbose
   local k label editor depth excludes include_ws paths_raw
   while IFS= read -r line; do
-    line="${line%%#*}"
+  line="${line%%\#*}"
     [[ -z "${line//[[:space:]]/}" ]] && continue
     if [[ "$line" == \[*\] ]]; then
       # flush current
@@ -414,7 +414,7 @@ doctor_config() {
   fi
   note "Config: $CONFIG_FILE"
   local any=0
-  # Redirect any potential xtrace output to /dev/null locally
+  local error_found=0
   local __xfd __xtracefd_saved
   exec {__xfd}>/dev/null
   __xtracefd_saved="$XTRACEFD"
@@ -438,13 +438,17 @@ doctor_config() {
       local _path
       for _path in "${ps[@]}"; do
         local _expanded; _expanded=$(expand_path "$_path" 2>/dev/null)
-        if [[ "$_expanded" != /* && "$_expanded" != "~/"* ]]; then
-          err "   ! path not absolute: $_path"
-        fi
-        if [[ -d "$_expanded" ]]; then
-          note "   ✓ $_expanded"
+        if [[ -z "$_expanded" ]]; then
+          err "   ! path not set: '$_path'"
+          error_found=1
+        elif [[ "$_expanded" != /* && "$_expanded" != "~/"* ]]; then
+          err "   ! path not absolute: '$_path' (expanded: '$_expanded')"
+          error_found=1
+        elif [[ ! -d "$_expanded" ]]; then
+          err "   ! missing directory: '$_expanded' (from '$_path')"
+          error_found=1
         else
-          err "   ! missing: $_expanded"
+          note "   ✓ $_expanded"
         fi
       done
     )
@@ -452,11 +456,20 @@ doctor_config() {
   # Restore xtrace fd
   if [[ -n "$__xtracefd_saved" ]]; then XTRACEFD="$__xtracefd_saved"; else unset XTRACEFD; fi
   exec {__xfd}>&-
+  if (( error_found )); then
+    err "Config check failed: see errors above."
+    return 2
+  fi
 }
 
+# ----------------------------- DOCTOR (Wrapper) ------------------------------
 cmd_doctor() {
-  doctor_deps
-  doctor_config || true
+  local rc=0
+  doctor_deps || true
+  if ! doctor_config; then
+    rc=$?
+  fi
+  return $rc
 }
 
 # ----------------------------- HELP / VERSION ---------------------------------
@@ -467,6 +480,7 @@ ppicker ${VERSION}
 Usage:
   ppicker init          Interactive wizard to create ${CONFIG_FILE}
   ppicker doctor        Validate config and show dependency fallbacks
+  ppicker reload        Reload config and regenerate plugin functions (run 'p reload' in your shell to refresh plugin)
   ppicker --help        Show this help
   ppicker --version     Show version
 EOF
@@ -474,12 +488,26 @@ EOF
 
 print_version() { print -r -- "$VERSION"; }
 
+# ----------------------------- Reload ----------------------------------------
+cmd_reload() {
+  print -r -- "Reloading config: $CONFIG_FILE"
+  # Touch plugin file to trigger re-source in shell (if sourced via .zshrc)
+  if [[ -f "$CONFIG_FILE" ]]; then
+    print -r -- "Config exists. To reload plugin functions, re-source your plugin:"
+    print -r -- "  source /path/to/project-picker/project-picker.plugin.zsh"
+    print -r -- "Or restart your shell."
+  else
+    print -r -- "No config found at $CONFIG_FILE. Run 'ppicker init' first."
+  fi
+}
+
 # ----------------------------- Main -------------------------------------------
 main() {
   local sub="${1:-}"
   case "$sub" in
     init)    shift; cmd_init "$@";;
     doctor)  shift; cmd_doctor "$@";;
+    reload)  shift; cmd_reload "$@";;
     --help|-h) print_help;;
     --version|-v) print_version;;
     *) print_help; [[ -n "$sub" ]] && exit 1 || exit 0;;
