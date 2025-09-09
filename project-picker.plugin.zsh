@@ -303,6 +303,8 @@ _pp_list_projects_one_root() {
 
 _pp_build_cache_for_key() {
   local key="$1"
+  # Ensure cache dir and log file exist before writing
+  _pp_bootstrap_fs
   local cache="$(_pp_cache "$key")"
   local depth="${PP_SCOPE_DEPTH[$key]:-$PP_DEPTH}"
   local incws="${PP_SCOPE_INCLUDE_WS[$key]:-$PP_INCLUDE_WORKSPACES}"
@@ -321,6 +323,8 @@ _pp_build_cache_for_key() {
 }
 
 _pp_build_cache_all() {
+  # Ensure cache dir and log file exist before writing
+  _pp_bootstrap_fs
   local cache="$(_pp_cache all)"
   if _pp_is_cache_stale "$cache" "$PP_CACHE_TTL_MIN"; then
     : >| "$cache"

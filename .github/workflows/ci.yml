@@ -63,6 +63,7 @@ jobs:
       - name: Integration tests (scopes, cache, excludes, depth, tree preview, p/pp)
         run: |
           export XDG_CONFIG_HOME="$RUNNER_TEMP/config"
+          export PP_CACHE_DIR="$RUNNER_TEMP/.cache/project-picker"
           mkdir -p "$XDG_CONFIG_HOME/project-picker"
           export ROOT="$RUNNER_TEMP/projects-full"
           mkdir -p "$ROOT/personal" "$ROOT/work"
@@ -85,6 +86,7 @@ jobs:
           paths=["$ROOT/work"]
           __CFG__
           source project-picker.plugin.zsh
+          _pp_bootstrap_fs
           # Build caches
           cache_p="$(_pp_build_cache_for_key p)"
           cache_w="$(_pp_build_cache_for_key w)"
