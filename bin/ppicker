@@ -197,7 +197,7 @@ cmd_init() {
     local depth="$DEFAULT_DEPTH"
     local excludes_arr; excludes_arr=$(array_to_toml "DEFAULT_EXCLUDES[@]")
     local incws="$DEFAULT_INCLUDE_WS"
-    mkdir -p "$CONFIG_DIR"
+  command mkdir -p "$CONFIG_DIR"
     {
       print -r -- "[global]"
       print -r -- "cache_ttl_min = ${ttl}"
@@ -221,7 +221,7 @@ cmd_init() {
   if [[ -o xtrace ]]; then __had_xtrace=1; unsetopt xtrace; fi
   print -r -- "${BOLD}${CYAN}🖥️ Project Picker Setup Wizard${RESET}"
   print -r -- "${YELLOW}Config path:${RESET} ${UNDER}$CONFIG_FILE${RESET}"
-  mkdir -p "$CONFIG_DIR"
+  command mkdir -p "$CONFIG_DIR"
 
   local ttl
 
