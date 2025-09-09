@@ -189,7 +189,8 @@ validate_key_unique() {
 
 # ----------------------------- INIT (Wizard) ----------------------------------
 cmd_init() {
-  if [[ "$1" == "--defaults" ]]; then
+  local _init_mode="${1:-}"
+  if [[ "$_init_mode" == "--defaults" ]]; then
     local ttl="$DEFAULT_CACHE_TTL_MIN"
     local label="${PPICKER_SCOPE_LABEL:-work}"
     local path="${PPICKER_SCOPE_PATH:-$HOME/work}"
@@ -197,7 +198,7 @@ cmd_init() {
     local depth="$DEFAULT_DEPTH"
     local excludes_arr; excludes_arr=$(array_to_toml "DEFAULT_EXCLUDES[@]")
     local incws="$DEFAULT_INCLUDE_WS"
-  command mkdir -p "$CONFIG_DIR"
+  if have mkdir; then command mkdir -p "$CONFIG_DIR"; fi
     {
       print -r -- "[global]"
       print -r -- "cache_ttl_min = ${ttl}"
@@ -221,7 +222,7 @@ cmd_init() {
   if [[ -o xtrace ]]; then __had_xtrace=1; unsetopt xtrace; fi
   print -r -- "${BOLD}${CYAN}🖥️ Project Picker Setup Wizard${RESET}"
   print -r -- "${YELLOW}Config path:${RESET} ${UNDER}$CONFIG_FILE${RESET}"
-  command mkdir -p "$CONFIG_DIR"
+  if have mkdir; then command mkdir -p "$CONFIG_DIR"; fi
 
   local ttl
 

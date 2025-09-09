@@ -115,6 +115,10 @@ jobs:
 
       - name: Integration tests for bin/ppicker
         run: |
-          # Run doctor and init commands directly (init uses --defaults for CI)
-          zsh bin/ppicker doctor || { echo 'ppicker doctor failed' >&2; exit 1; }
+          # Prepare config dir and a sample scope path for CI
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/config"
+          export PPICKER_SCOPE_PATH="$RUNNER_TEMP/work"
+          mkdir -p "$XDG_CONFIG_HOME/project-picker" "$PPICKER_SCOPE_PATH"
+          # Create config non-interactively, then validate
           zsh bin/ppicker init --defaults || { echo 'ppicker init failed' >&2; exit 1; }
+          zsh bin/ppicker doctor || { echo 'ppicker doctor failed' >&2; exit 1; }
