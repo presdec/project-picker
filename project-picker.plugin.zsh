@@ -343,6 +343,8 @@ _pp_pick_from_list() {
   local -a lines labels paths
   local it leaf safe_it i=1
   for it in "${src[@]}"; do
+    # Only accept absolute paths to avoid stray lines (e.g., headers) entering the list
+    [[ "$it" == /* ]] || continue
     leaf="${it:t}"
     [[ "$leaf" == *.code-workspace ]] && leaf="${leaf%.code-workspace}"
     leaf="${leaf//$'\t'/ }"      # guard tabs in label
@@ -355,18 +357,20 @@ _pp_pick_from_list() {
 
   if _pp_have fzf; then
     local selected
+    local pprompt="Project >"
+    [[ -n "$PP_PICKER_HEADER" ]] && pprompt="Project $PP_PICKER_HEADER > "
     if [[ "$PP_PREVIEW" == "tree" && $(_pp_have tree; echo $?) -eq 0 ]]; then
       selected=$(printf '%s\n' "${lines[@]}" \
-        | command env -u FZF_DEFAULT_OPTS -u FZF_DEFAULT_COMMAND -- fzf \
-            --no-multi --ansi --delimiter $'\t' --with-nth=2..2 --nth=2..2 \
-            --prompt="Project > " --height=80% --layout=reverse --border \
+    | command env -u FZF_DEFAULT_OPTS -u FZF_DEFAULT_COMMAND -- fzf \
+      --no-multi --ansi --delimiter $'\t' --with-nth=2..2 --nth=2..2 \
+      --prompt="$pprompt" --height=80% --layout=reverse --border \
             --preview="$PP_PREVIEW_SHELL -c 'p=\$(printf \"%s\" \"\$1\" | cut -d \$'\''\t'\'' -f3-); if [ -d \"\$p\" ]; then tree -a -L 2 \"\$p\"; else echo \".code-workspace:\"; head -n 120 \"\$p\"; fi' _ {}"
       ) || return 1
     else
       selected=$(printf '%s\n' "${lines[@]}" \
         | command env -u FZF_DEFAULT_OPTS -u FZF_DEFAULT_COMMAND -- fzf \
             --no-multi --ansi --delimiter $'\t' --with-nth=2..2 --nth=2..2 \
-            --prompt="Project > " --height=80% --layout=reverse --border \
+            --prompt="$pprompt" --height=80% --layout=reverse --border \
             --preview="$PP_PREVIEW_SHELL -c 'p=\$(printf \"%s\" \"\$1\" | cut -d \$'\''\t'\'' -f3-); name=\$(basename \"\$p\"); typ=dir; [ -d \"\$p\" ] || typ=file; echo \"Name:  \$name\"; echo \"Path:  \$p\"; if [ -r \"$PP_LOG_FILE\" ]; then last=\$(grep -F -- \"\$p\" \"$PP_LOG_FILE\" 2>/dev/null | tail -n 1 | cut -f1); [ -n \"\$last\" ] && echo \"Last:  \$last\"; fi; echo; if [ \"\$typ\" = dir ]; then ls -1a \"\$p\" | head -n 30; else head -n 120 \"\$p\"; fi' _ {}"
       ) || return 1
     fi
@@ -380,6 +384,7 @@ _pp_pick_from_list() {
       fi_paths+=("${paths[$i]}")
     done
     while true; do
+      if [[ -n "$PP_PICKER_HEADER" ]]; then printf '%s\n' "$PP_PICKER_HEADER"; fi
       local idx=1
       for leaf in "${fi_labels[@]}"; do printf '%2d) %s\n' $idx "$leaf"; ((idx++)); done
       printf "Select number, /text to filter, or q: "
@@ -390,8 +395,9 @@ _pp_pick_from_list() {
         fi_labels=() fi_paths=()
         for (( i=1; i<=${#labels[@]}; i++ )); do
           local ll="${labels[$i]}"
-          [[ "${ll:l}" == *${ql}* ]] || continue
-          fi_labels+=("$ll")
+      PP_PICKER_HEADER="Scope: \${PP_SCOPE_LABELS[$k]:-$k}"
+      local sel; sel="\$(_pp_pick_from_list \"\${items[@]}\")" || { unset PP_PREVIEW_EDITOR PP_PICKER_HEADER; return; }
+      unset PP_PREVIEW_EDITOR PP_PICKER_HEADER
           fi_paths+=("${paths[$i]}")
         done
         (( ${#fi_labels[@]} )) || printf "(no matches)\n"
@@ -513,6 +519,7 @@ p() {
     local -a items; items=("${(@f)$(<"$cache")}")
     _pp_quiet_pop
     unset PP_PREVIEW_EDITOR
+    PP_PICKER_HEADER="Scope: all"
     sel="$(_pp_pick_from_list "${items[@]}")" || return
     chosen_key="$(_pp_key_for_path "$sel")"
   else
@@ -522,10 +529,12 @@ p() {
     local -a items; items=("${(@f)$(<"$cache")}")
     _pp_quiet_pop
     export PP_PREVIEW_EDITOR="${editor:-${PP_SCOPE_EDITORS[$key]:-$PP_DEFAULT_EDITOR}}"
+    PP_PICKER_HEADER="Scope: ${PP_SCOPE_LABELS[$key]:-$key}"
     sel="$(_pp_pick_from_list "${items[@]}")" || { unset PP_PREVIEW_EDITOR; return; }
     unset PP_PREVIEW_EDITOR
     chosen_key="$key"
   fi
+  unset PP_PICKER_HEADER
 
   [[ -z "$sel" ]] && return
   [[ -z "$chosen_key" ]] && chosen_key="$(_pp_key_for_path "$sel")"
@@ -574,8 +583,9 @@ p$k() {
   local -a items; items=(\"\${(@f)\$(<\"\$cache\")}\")
   _pp_quiet_pop
   export PP_PREVIEW_EDITOR=\"\${editor:-\${PP_SCOPE_EDITORS[$k]:-$PP_DEFAULT_EDITOR}}\"
-  local sel; sel=\"\$(_pp_pick_from_list \"\${items[@]}\")\" || { unset PP_PREVIEW_EDITOR; return; }
-  unset PP_PREVIEW_EDITOR
+  PP_PICKER_HEADER=\"Scope: \${PP_SCOPE_LABELS[$k]:-$k}\"
+  local sel; sel=\"\$(_pp_pick_from_list \"\${items[@]}\")\" || { unset PP_PREVIEW_EDITOR PP_PICKER_HEADER; return; }
+  unset PP_PREVIEW_EDITOR PP_PICKER_HEADER
   [[ -z \"\$sel\" ]] && return
   local label=\"\${PP_SCOPE_LABELS[$k]:-$k}\"
   local chosen_editor=\"\${editor:-\${PP_SCOPE_EDITORS[$k]:-$PP_DEFAULT_EDITOR}}\"
