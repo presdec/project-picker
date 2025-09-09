@@ -70,7 +70,7 @@ jobs:
           mkdir -p "$ROOT/personal/audiobook-player-sync" "$ROOT/personal/another-project/node_modules/skip"
           : > "$ROOT/personal/personal-hub.code-workspace"
           mkdir -p "$ROOT/work/level1/level2"
-          cat > "$XDG_CONFIG_HOME/project-picker/config.toml" <<'__CFG__'
+          cat > "$XDG_CONFIG_HOME/project-picker/config.toml" <<__CFG__
           [global]
           preview="tree"
           depth=1

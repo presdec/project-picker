@@ -10,8 +10,8 @@ typeset -g PP_PREVIEW=tree
 typeset -g PP_DEPTH=1
 typeset -g PP_EXCLUDES="node_modules:.git"
 typeset -g PP_INCLUDE_WORKSPACES=true
-typeset -g PP_CACHE_DIR="${HOME}/.cache/project-picker"
-typeset -g PP_LOG_FILE="${PP_CACHE_DIR}/history.log"
+typeset -g PP_CACHE_DIR="${PP_CACHE_DIR:-$HOME/.cache/project-picker}"
+typeset -g PP_LOG_FILE="${PP_LOG_FILE:-${PP_CACHE_DIR}/history.log}"
 typeset -g PP_CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/project-picker/config.toml"
 typeset -g PP_HISTORY_MAX_LINES=1000
 
