@@ -50,7 +50,7 @@ _pp_expand_tilde() { [[ "$1" == ~* ]] && echo ${~1} || echo "$1"; }
 _pp_join_colon() { local IFS=:; print -r -- "$*"; }
 
 _pp_bootstrap_fs() {
-  mkdir -p -- "$PP_CACHE_DIR" 2>/dev/null || true
+  mkdir -p "$PP_CACHE_DIR" 2>/dev/null || true
   [[ -r "$PP_LOG_FILE" ]] || : >| "$PP_LOG_FILE"
 }
 
@@ -269,7 +269,7 @@ _pp_exclude_args_find_array() {
   reply=()
   local X="$1" x IFS=:
   for x in $X; do
-    [[ -n "$x" ]] && reply+=( -not -path "*/$x/*" )
+  [[ -n "$x" ]] && reply+=( ! -path "*/$x/*" )
   done
 }
 
@@ -350,8 +350,8 @@ _pp_pick_from_list() {
     [[ "$leaf" == *.code-workspace ]] && leaf="${leaf%.code-workspace}"
     leaf="${leaf//$'\t'/ }"      # guard tabs in label
     safe_it="${p//$'\t'/ }"      # guard tabs in path
-  # columns: 1=index 2=label (shown) 3=path (result)
-  lines+=("$i"$'\t'"$leaf"$'\t'"$safe_it")
+    # columns: 1=index 2=label (shown) 3=path (result)
+    lines+=("$i"$'\t'"$leaf"$'\t'"$safe_it")
     labels+=("$leaf")
     paths+=("$safe_it")
     ((i++))
@@ -361,22 +361,35 @@ _pp_pick_from_list() {
     local selected
     local pprompt="Project >"
     [[ -n "$PP_PICKER_HEADER" ]] && pprompt="Project $PP_PICKER_HEADER > "
+    # Optional: allow non-interactive filtering (e.g., in CI) via PP_FZF_FILTER
+    local -a fzf_extra
+    if [[ -n "$PP_FZF_FILTER" ]]; then
+      fzf_extra=( --filter "$PP_FZF_FILTER" )
+    else
+      fzf_extra=()
+    fi
     if [[ "$PP_PREVIEW" == "tree" && $(_pp_have tree; echo $?) -eq 0 ]]; then
       selected=$(printf '%s\n' "${lines[@]}" \
-    | command env -u FZF_DEFAULT_OPTS -u FZF_DEFAULT_COMMAND -- fzf \
-  --no-multi --ansi --delimiter $'\t' --with-nth=2 \
-      --prompt="$pprompt" --height=80% --layout=reverse --border \
-            --preview="$PP_PREVIEW_SHELL -c 'p=\$(printf \"%s\" \"\$1\" | cut -d \$'\''\t'\'' -f3-); if [ -d \"\$p\" ]; then tree -a -L 2 \"\$p\"; else echo \".code-workspace:\"; head -n 120 \"\$p\"; fi' _ {}"
+        | command env -u FZF_DEFAULT_OPTS -u FZF_DEFAULT_COMMAND -- fzf \
+          --no-multi --ansi --delimiter $'\t' --with-nth=2 \
+          --prompt="$pprompt" --height=80% --layout=reverse --border "${fzf_extra[@]}" \
+          --preview="$PP_PREVIEW_SHELL -c 'p=\$(printf \"%s\" \"$1\" | cut -d $'\''\t'\'' -f3-); if [ -d \"$p\" ]; then tree -a -L 2 \"$p\"; else echo \".code-workspace:\"; head -n 120 \"$p\"; fi' _ {}"
       ) || return 1
     else
       selected=$(printf '%s\n' "${lines[@]}" \
-    | command env -u FZF_DEFAULT_OPTS -u FZF_DEFAULT_COMMAND -- fzf \
-      --no-multi --ansi --delimiter $'\t' --with-nth=2 \
-            --prompt="$pprompt" --height=80% --layout=reverse --border \
-            --preview="$PP_PREVIEW_SHELL -c 'p=\$(printf \"%s\" \"\$1\" | cut -d \$'\''\t'\'' -f3-); name=\$(basename \"\$p\"); typ=dir; [ -d \"\$p\" ] || typ=file; echo \"Name:  \$name\"; echo \"Path:  \$p\"; if [ -r \"$PP_LOG_FILE\" ]; then last=\$(grep -F -- \"\$p\" \"$PP_LOG_FILE\" 2>/dev/null | tail -n 1 | cut -f1); [ -n \"\$last\" ] && echo \"Last:  \$last\"; fi; echo; if [ \"\$typ\" = dir ]; then ls -1a \"\$p\" | head -n 30; else head -n 120 \"\$p\"; fi' _ {}"
+        | command env -u FZF_DEFAULT_OPTS -u FZF_DEFAULT_COMMAND -- fzf \
+          --no-multi --ansi --delimiter $'\t' --with-nth=2 \
+          --prompt="$pprompt" --height=80% --layout=reverse --border "${fzf_extra[@]}" \
+          --preview="$PP_PREVIEW_SHELL -c 'p=\$(printf \"%s\" \"$1\" | cut -d $'\''\t'\'' -f3-); name=\$(basename \"$p\"); typ=dir; [ -d \"$p\" ] || typ=file; echo \"Name:  $name\"; echo \"Path:  $p\"; if [ -r \"$PP_LOG_FILE\" ]; then last=\$(grep -F -- \"$p\" \"$PP_LOG_FILE\" 2>/dev/null | tail -n 1 | cut -f1); [ -n \"$last\" ] && echo \"Last:  $last\"; fi; echo; if [ \"$typ\" = dir ]; then ls -1a \"$p\" | head -n 30; else head -n 120 \"$p\"; fi' _ {}"
       ) || return 1
     fi
-  printf '%s\n' "$selected" | cut -d $'\t' -f3-
+    # If non-interactive filtering was used, pick only the first match
+    if [[ -n "$PP_FZF_FILTER" ]]; then
+      local -a _pp_sel_lines
+      _pp_sel_lines=(${(f)selected})
+      selected="${_pp_sel_lines[1]}"
+    fi
+    printf '%s\n' "$selected" | cut -d $'\t' -f3-
   else
     # Minimal interactive filter when fzf is unavailable
     local -a fi_labels fi_paths

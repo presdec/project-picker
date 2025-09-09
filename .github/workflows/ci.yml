@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (fzf/tree/fd)
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            sudo apt-get update -y
+            sudo apt-get install -y fzf tree
+          else
+            brew install fzf tree fd || true
+          fi
+
+      - name: Syntax check plugin
+        shell: bash
+        run: zsh -n project-picker.plugin.zsh
+
+      - name: Non-interactive picker smoke test (PP_FZF_FILTER)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Prepare two fake projects
+          ROOT="${RUNNER_TEMP}/projects"
+          mkdir -p "$ROOT/audiobook-player-sync" "$ROOT/another-project"
+          # Source plugin
+          source project-picker.plugin.zsh
+          # Drive picker with a filter and assert it returns the expected path
+          export PP_FZF_FILTER=audio
+          sel="$(_pp_pick_from_list "$ROOT/audiobook-player-sync" "$ROOT/another-project")"
+          echo "Selected: $sel"
+          test "$sel" = "$ROOT/audiobook-player-sync"
+
+      - name: Integration tests (scopes, cache, excludes, depth, tree preview, p/pp)
+        shell: bash
+        run: |
+          set -euo pipefail
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/config"
+          mkdir -p "$XDG_CONFIG_HOME/project-picker"
+          export ROOT="$RUNNER_TEMP/projects-full"
+          mkdir -p "$ROOT/personal" "$ROOT/work"
+          mkdir -p "$ROOT/personal/audiobook-player-sync" "$ROOT/personal/another-project/node_modules/skip"
+          : > "$ROOT/personal/personal-hub.code-workspace"
+          mkdir -p "$ROOT/work/level1/level2"
+          cat > "$XDG_CONFIG_HOME/project-picker/config.toml" <<'__CFG__'
+          [global]
+          preview="tree"
+          depth=1
+          include_workspaces=true
+          excludes=["node_modules",".git"]
+
+          [scopes.p]
+          label="personal"
+          paths=["$ROOT/personal"]
+
+          [scopes.w]
+          label="work"
+          paths=["$ROOT/work"]
+          __CFG__
+          zsh -lec '
+            set -euo pipefail
+            source project-picker.plugin.zsh
+            # Build caches
+            cache_p="$(_pp_build_cache_for_key p)"
+            cache_w="$(_pp_build_cache_for_key w)"
+            echo "Cache P: $cache_p"; echo "Cache W: $cache_w"
+            grep -F -- "$ROOT/personal/audiobook-player-sync" "$cache_p"
+            grep -F -- "$ROOT/personal/personal-hub.code-workspace" "$cache_p"
+            if grep -F -- "node_modules" "$cache_p"; then echo "unexpected node_modules in cache" >&2; exit 1; fi
+            if grep -F -- "$ROOT/work/level1/level2" "$cache_w"; then echo "unexpected level2 in cache" >&2; exit 1; fi
+            # Tree preview branch exercised with non-interactive filter
+            export PP_PREVIEW=tree
+            export PP_FZF_FILTER=audio
+            sel="$(_pp_pick_from_list "$ROOT/personal/audiobook-player-sync" "$ROOT/personal/another-project")"
+            test "$sel" = "$ROOT/personal/audiobook-player-sync"
+            # p<key> -t should cd into selection
+            export PP_FZF_FILTER=audio
+            pp -t
+            test "$PWD" = "$ROOT/personal/audiobook-player-sync"
+            # p -t with all scope (via stdin)
+            cd "$RUNNER_TEMP"
+            export PP_FZF_FILTER=level1
+            print -r -- all | p -t
+            test "$PWD" = "$ROOT/work/level1"
+            # Log file should contain entries
+            test -s "$PP_LOG_FILE"
+            grep -F -- "$ROOT/work/level1" "$PP_LOG_FILE" >/dev/null
+          '
