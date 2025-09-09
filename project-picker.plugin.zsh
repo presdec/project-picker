@@ -26,9 +26,24 @@ typeset -g PP_CLR_BLUE=$'\e[34m'
 # Shell used for fzf preview scripts (keep minimal and universal)
 typeset -g PP_PREVIEW_SHELL="${PP_PREVIEW_SHELL:-/bin/sh}"
 
-# Quiet helpers (no-ops; kept for compatibility/hooks)
-_pp_quiet_push() { :; }
-_pp_quiet_pop()  { :; }
+# Quiet helpers: temporarily silence stdout/stderr with a stack
+typeset -ga __PP_QSTACK_OUT=() __PP_QSTACK_ERR=()
+_pp_quiet_push() {
+  local o e
+  exec {o}>&1 {e}>&2
+  __PP_QSTACK_OUT+=("$o")
+  __PP_QSTACK_ERR+=("$e")
+  exec >/dev/null 2>&1
+}
+_pp_quiet_pop() {
+  local o e
+  (( ${#__PP_QSTACK_OUT[@]} )) || return 0
+  o=${__PP_QSTACK_OUT[-1]}
+  e=${__PP_QSTACK_ERR[-1]}
+  unset '__PP_QSTACK_OUT[-1]' '__PP_QSTACK_ERR[-1]'
+  exec 1>&$o 2>&$e
+  exec {o}>&- {e}>&-
+}
 
 _pp_have() { command -v "$1" >/dev/null 2>&1; }
 _pp_expand_tilde() { [[ "$1" == ~* ]] && echo ${~1} || echo "$1"; }
@@ -599,6 +614,8 @@ p${k}l() {
   done
 }
 
-# Initialization
+# Initialization (silent)
+_pp_quiet_push
 _pp_load_toml
 _pp_define_scope_cmds
+_pp_quiet_pop
