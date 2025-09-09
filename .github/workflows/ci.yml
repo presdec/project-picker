@@ -112,3 +112,9 @@ jobs:
           # Log file should contain entries
           test -s "$PP_LOG_FILE"
           grep -F -- "$ROOT/work/level1" "$PP_LOG_FILE" >/dev/null
+
+      - name: Integration tests for bin/ppicker
+        run: |
+          # Run doctor and init commands directly
+          zsh bin/ppicker doctor || { echo 'ppicker doctor failed' >&2; exit 1; }
+          zsh bin/ppicker init   || { echo 'ppicker init failed' >&2; exit 1; }
