@@ -341,15 +341,17 @@ _pp_pick_from_list() {
   (( ${#src[@]} )) || return 1
 
   local -a lines labels paths
-  local it leaf safe_it i=1
+  local it p leaf safe_it i=1
   for it in "${src[@]}"; do
     # Only accept absolute paths to avoid stray lines (e.g., headers) entering the list
     [[ "$it" == /* ]] || continue
-    leaf="${it:t}"
+    p="${it%/}"
+    leaf="${p:t}"
     [[ "$leaf" == *.code-workspace ]] && leaf="${leaf%.code-workspace}"
     leaf="${leaf//$'\t'/ }"      # guard tabs in label
-    safe_it="${it//$'\t'/ }"     # guard tabs in path
-    lines+=("$i"$'\t'"$leaf"$'\t'"$safe_it")
+    safe_it="${p//$'\t'/ }"      # guard tabs in path
+  # columns: 1=index 2=label (shown) 3=path (result)
+  lines+=("$i"$'\t'"$leaf"$'\t'"$safe_it")
     labels+=("$leaf")
     paths+=("$safe_it")
     ((i++))
@@ -362,19 +364,19 @@ _pp_pick_from_list() {
     if [[ "$PP_PREVIEW" == "tree" && $(_pp_have tree; echo $?) -eq 0 ]]; then
       selected=$(printf '%s\n' "${lines[@]}" \
     | command env -u FZF_DEFAULT_OPTS -u FZF_DEFAULT_COMMAND -- fzf \
-      --no-multi --ansi --delimiter $'\t' --with-nth=2..2 --nth=2..2 \
+  --no-multi --ansi --delimiter $'\t' --with-nth=2 \
       --prompt="$pprompt" --height=80% --layout=reverse --border \
             --preview="$PP_PREVIEW_SHELL -c 'p=\$(printf \"%s\" \"\$1\" | cut -d \$'\''\t'\'' -f3-); if [ -d \"\$p\" ]; then tree -a -L 2 \"\$p\"; else echo \".code-workspace:\"; head -n 120 \"\$p\"; fi' _ {}"
       ) || return 1
     else
       selected=$(printf '%s\n' "${lines[@]}" \
-        | command env -u FZF_DEFAULT_OPTS -u FZF_DEFAULT_COMMAND -- fzf \
-            --no-multi --ansi --delimiter $'\t' --with-nth=2..2 --nth=2..2 \
+    | command env -u FZF_DEFAULT_OPTS -u FZF_DEFAULT_COMMAND -- fzf \
+      --no-multi --ansi --delimiter $'\t' --with-nth=2 \
             --prompt="$pprompt" --height=80% --layout=reverse --border \
             --preview="$PP_PREVIEW_SHELL -c 'p=\$(printf \"%s\" \"\$1\" | cut -d \$'\''\t'\'' -f3-); name=\$(basename \"\$p\"); typ=dir; [ -d \"\$p\" ] || typ=file; echo \"Name:  \$name\"; echo \"Path:  \$p\"; if [ -r \"$PP_LOG_FILE\" ]; then last=\$(grep -F -- \"\$p\" \"$PP_LOG_FILE\" 2>/dev/null | tail -n 1 | cut -f1); [ -n \"\$last\" ] && echo \"Last:  \$last\"; fi; echo; if [ \"\$typ\" = dir ]; then ls -1a \"\$p\" | head -n 30; else head -n 120 \"\$p\"; fi' _ {}"
       ) || return 1
     fi
-    printf '%s\n' "$selected" | cut -d $'\t' -f3-
+  printf '%s\n' "$selected" | cut -d $'\t' -f3-
   else
     # Minimal interactive filter when fzf is unavailable
     local -a fi_labels fi_paths
@@ -394,11 +396,11 @@ _pp_pick_from_list() {
         local q="${ans#/}" ql; ql="${q:l}"
         fi_labels=() fi_paths=()
         for (( i=1; i<=${#labels[@]}; i++ )); do
-          local ll="${labels[$i]}"
-      PP_PICKER_HEADER="Scope: \${PP_SCOPE_LABELS[$k]:-$k}"
-      local sel; sel="\$(_pp_pick_from_list \"\${items[@]}\")" || { unset PP_PREVIEW_EDITOR PP_PICKER_HEADER; return; }
-      unset PP_PREVIEW_EDITOR PP_PICKER_HEADER
-          fi_paths+=("${paths[$i]}")
+          local ll="${labels[$i]}" pp="${paths[$i]}"
+          if [[ "${ll:l}" == *${ql}* || "${pp:l}" == *${ql}* ]]; then
+            fi_labels+=("$ll")
+            fi_paths+=("$pp")
+          fi
         done
         (( ${#fi_labels[@]} )) || printf "(no matches)\n"
         continue
