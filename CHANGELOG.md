@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0] - 2025-09-17
+
+### Changed
+
+- Introduced automated GitHub Release workflow to package and publish artifacts.
+
+### Fixed
+
+- Document preview pane now renders reliably and behaves as expected.
+
+### Docs
+
+- Added README screencast image.
+
+---
+
 ## [1.0.0-beta] - 2025-09-09
 
 ### Pre-release
