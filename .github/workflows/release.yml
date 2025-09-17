@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build artifacts
+        run: |
+          mkdir -p dist
+          ARTIFACT="project-picker-${GITHUB_REF_NAME}.tar.gz"
+          tar -czf "dist/${ARTIFACT}" \
+            project-picker.plugin.zsh bin/ppicker completions/_ppicker README.md LICENSE
+          (cd dist && sha256sum "${ARTIFACT}" > "${ARTIFACT}.sha256") || true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            dist/project-picker-${{ github.ref_name }}.tar.gz
+            dist/project-picker-${{ github.ref_name }}.tar.gz.sha256

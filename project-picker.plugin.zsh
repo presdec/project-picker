@@ -379,14 +379,52 @@ _pp_pick_from_list() {
         | command env -u FZF_DEFAULT_OPTS -u FZF_DEFAULT_COMMAND -- fzf \
           --no-multi --ansi --delimiter $'\t' --with-nth=2 \
           --prompt="$pprompt" --height=80% --layout=reverse --border "${fzf_extra[@]}" \
-          --preview="$PP_PREVIEW_SHELL -c 'p=\$(printf \"%s\" \"$1\" | cut -d $'\''\t'\'' -f3-); if [ -d \"$p\" ]; then tree -a -L 2 \"$p\"; else echo \".code-workspace:\"; head -n 120 \"$p\"; fi' _ {}"
+          --preview-window=right,60%,wrap,border \
+          --delimiter '\t' --with-nth=2 \
+          --preview '
+            p={3}
+            if [ -z "$p" ]; then
+              echo "(no path)"; exit 0
+            fi
+            if [ -d "$p" ]; then
+              if command -v tree >/dev/null 2>&1; then
+                tree -a -L 2 "$p"
+              else
+                echo "(tree missing: showing ls)"
+                ls -A "$p" | sed -n "1,80p"
+              fi
+            elif [ -f "$p" ]; then
+              head -n 120 "$p"
+            else
+              echo "(path not found) $p"
+            fi
+            '
       ) || return 1
     else
       selected=$(printf '%s\n' "${lines[@]}" \
         | command env -u FZF_DEFAULT_OPTS -u FZF_DEFAULT_COMMAND -- fzf \
           --no-multi --ansi --delimiter $'\t' --with-nth=2 \
           --prompt="$pprompt" --height=80% --layout=reverse --border "${fzf_extra[@]}" \
-          --preview="$PP_PREVIEW_SHELL -c 'p=\$(printf \"%s\" \"$1\" | cut -d $'\''\t'\'' -f3-); name=\$(basename \"$p\"); typ=dir; [ -d \"$p\" ] || typ=file; echo \"Name:  $name\"; echo \"Path:  $p\"; if [ -r \"$PP_LOG_FILE\" ]; then last=\$(grep -F -- \"$p\" \"$PP_LOG_FILE\" 2>/dev/null | tail -n 1 | cut -f1); [ -n \"$last\" ] && echo \"Last:  $last\"; fi; echo; if [ \"$typ\" = dir ]; then ls -1a \"$p\" | head -n 30; else head -n 120 \"$p\"; fi' _ {}"
+          --preview-window=right,60%,wrap,border \
+          --delimiter '\t' --with-nth=2 \
+          --preview '
+          p={3}
+          if [ -z "$p" ]; then
+            echo "(no path)"; exit 0
+          fi
+          if [ -d "$p" ]; then
+            if command -v tree >/dev/null 2>&1; then
+              tree -a -L 2 "$p"
+            else
+              echo "(tree missing: showing ls)"
+              ls -A "$p" | sed -n "1,80p"
+            fi
+          elif [ -f "$p" ]; then
+            head -n 120 "$p"
+          else
+            echo "(path not found) $p"
+          fi
+          '
       ) || return 1
     fi
     # If non-interactive filtering was used, pick only the first match

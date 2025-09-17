@@ -27,10 +27,10 @@ A fast, interactive project launcher for zsh. Supports multiple scopes, fuzzy se
    # Or CLI:
    ppicker init
    ```
-    - Non-interactive (for CI):
-       ```sh
-       PPICKER_SCOPE_PATH="$HOME/work" PPICKER_SCOPE_LABEL="work" ppicker init --defaults
-       ```
+   - Non-interactive (for CI):
+     ```sh
+     PPICKER_SCOPE_PATH="$HOME/work" PPICKER_SCOPE_LABEL="work" ppicker init --defaults
+     ```
 3. Validate config (choose one):
    ```sh
    p doctor
@@ -50,7 +50,7 @@ A fast, interactive project launcher for zsh. Supports multiple scopes, fuzzy se
 - `p doctor` — validate config and dependencies (plugin)
 - `p reload` — reload plugin functions after config change
 - `ppicker init` — run config wizard (CLI)
-   - Use `ppicker init --defaults` for a non-interactive setup (useful in CI). You can set `PPICKER_SCOPE_PATH` and `PPICKER_SCOPE_LABEL` to control the generated default scope.
+  - Use `ppicker init --defaults` for a non-interactive setup (useful in CI). You can set `PPICKER_SCOPE_PATH` and `PPICKER_SCOPE_LABEL` to control the generated default scope.
 - `ppicker doctor` — validate config and dependencies (CLI)
 - `ppicker reload` — reload config and regenerate plugin functions (CLI)
 - `p` — pick a project from any scope
@@ -66,14 +66,14 @@ A fast, interactive project launcher for zsh. Supports multiple scopes, fuzzy se
 ### Environment variables
 
 - Picker/Plugin:
-   - `PP_CACHE_DIR` — override cache directory (default: `$HOME/.cache/project-picker`).
-   - `PP_LOG_FILE` — override history log path (default: `$PP_CACHE_DIR/history.log`).
-   - `PP_PREVIEW_SHELL` — shell used for fzf previews (default: `/bin/sh`).
-   - `PP_FZF_FILTER` — non-interactive filter passed to fzf (used in tests/automation).
+  - `PP_CACHE_DIR` — override cache directory (default: `$HOME/.cache/project-picker`).
+  - `PP_LOG_FILE` — override history log path (default: `$PP_CACHE_DIR/history.log`).
+  - `PP_PREVIEW_SHELL` — shell used for fzf previews (default: `/bin/sh`).
+  - `PP_FZF_FILTER` — non-interactive filter passed to fzf (used in tests/automation).
 - CLI (`ppicker init --defaults`):
-   - `PPICKER_SCOPE_PATH` — path for the default scope (default: `$HOME/work`).
-   - `PPICKER_SCOPE_LABEL` — label for the default scope (default: `work`).
-   - `XDG_CONFIG_HOME` — base config directory (writes to `$XDG_CONFIG_HOME/project-picker/config.toml`).
+  - `PPICKER_SCOPE_PATH` — path for the default scope (default: `$HOME/work`).
+  - `PPICKER_SCOPE_LABEL` — label for the default scope (default: `work`).
+  - `XDG_CONFIG_HOME` — base config directory (writes to `$XDG_CONFIG_HOME/project-picker/config.toml`).
 
 ### TOML Schema
 

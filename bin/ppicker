@@ -10,7 +10,7 @@ unsetopt verbose 2>/dev/null || true
 set +x +v 2>/dev/null || true
 
 # ----------------------------- Constants --------------------------------------
-VERSION="0.1.0"
+VERSION="1.0.0-beta"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/project-picker"
 CONFIG_FILE="${CONFIG_DIR}/config.toml"
 
@@ -20,7 +20,7 @@ DEFAULT_EDITOR="code"         # code|codium|idea|cursor|windsurf|nvim|vim|custom
 DEFAULT_PREVIEW="tree"        # tree|none
 DEFAULT_DEPTH=1
 DEFAULT_EXCLUDES=("node_modules" ".git")
-DEFAULT_INCLUDE_WS="true"
+DEFAULT_INCLUDE_WS="false"
 
 # ----------------------------- Helpers ----------------------------------------
 have() { command -v "$1" >/dev/null 2>&1; }
@@ -289,8 +289,14 @@ cmd_init() {
   if [[ -n "$d" ]]; then print -r -- "${GREEN}✔ Depth: ${d}${RESET}"; else print -r -- "${GREEN}✔ Depth: default${RESET}"; fi
   ask_var exl "Excludes (comma-separated; blank=default)" ""
   if [[ -n "$exl" ]]; then print -r -- "${GREEN}✔ Excludes: ${exl}${RESET}"; else print -r -- "${GREEN}✔ Excludes: default${RESET}"; fi
-  local iw; if yesno "Include .code-workspace for this scope? (blank=default)" default_no; then iw="true"; else iw=""; fi
-  if [[ -n "$iw" ]]; then print -r -- "${GREEN}✔ Include workspaces: true${RESET}"; else print -r -- "${GREEN}✔ Include workspaces: default${RESET}"; fi
+  local iw
+  if yesno "Include .code-workspace for this scope? (blank=default)" default_no; then
+    iw="true"
+  else
+    iw="false"
+  fi
+  
+print -r -- "include_workspaces = ${iw}"
 
     scope_keys+="$key"
     scope_labels+="$label"

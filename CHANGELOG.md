@@ -2,20 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.1.0] - 2025-09-05
+## [1.0.0-beta] - 2025-09-09
+
+### Pre-release
+
+- First beta pre-release tagged as `v1.0.0-beta`.
+- Cross-platform CI (Ubuntu, macOS) added with integration tests for plugin and CLI.
+- Non-interactive `ppicker init --defaults` for CI and automation.
+- Numerous portability fixes for zsh and BSD/GNU utilities.
+
+---
+
+## [0.9.0] - 2025-09-05
 
 ### Added
 
 - `history_max_lines` config option (default 1000) in `[global]` section
 - Log file is trimmed to newest N lines if exceeded
 - Doctor reports current history_max_lines value
-
----
-
-## [1.0.0] - 2025-09-05
-
-### Added
-
 - Initial public release
 - Interactive config wizard (`ppicker init`, `p config`)
 - Per-scope and global TOML config
