@@ -4,6 +4,8 @@
 
 A fast, interactive project launcher for zsh. Supports multiple scopes, fuzzy search, and editor integration.
 
+![Screencast_20250917_082517 (1)](https://github.com/user-attachments/assets/cbf8c885-a6b5-483a-b70b-b9a5ef27f849)
+
 ## Features
 
 - Define scopes for different project roots (work, personal, language, etc.)
