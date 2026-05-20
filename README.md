@@ -16,12 +16,48 @@ Jump between repos instantly from your terminal. Supports multiple scopes, fuzzy
 - Optional dependencies: `fd`, `fzf`, `tree` (falls back to built-ins)
 - Works on Linux, macOS, and Windows (with zsh)
 
+## Installation
+
+### oh-my-zsh (Custom Plugin)
+
+Clone into your custom plugins directory:
+
+```sh
+git clone https://github.com/presdec/project-picker \
+  ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/project-picker
+```
+
+Add `project-picker` to your plugins array in `~/.zshrc`:
+
+```sh
+plugins=(... project-picker)
+```
+
+Restart your shell (or `source ~/.zshrc`), then run the setup wizard:
+
+```sh
+p config
+```
+
+### zinit
+
+```sh
+zinit light presdec/project-picker
+```
+
+### Manual
+
+Add to `~/.zshrc`:
+
+```sh
+source /path/to/project-picker/project-picker.plugin.zsh
+```
+
+Then run `p config` to set up scopes.
+
 ## Quick Start
 
-1. Clone the repo and source the plugin in your `.zshrc`:
-   ```sh
-   source /path/to/project-picker/project-picker.plugin.zsh
-   ```
+1. Install the plugin (see [Installation](#installation) for oh-my-zsh, zinit, and manual options).
 2. Run the config wizard (choose one):
    ```sh
    # Plugin function (recommended):
