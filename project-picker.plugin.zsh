@@ -536,7 +536,20 @@ p_config() {
 _pp_open() {
   local action="$1" editor="$2" sel="$3"
   case "$action" in
-    cd)     [[ -d "$sel" ]] && builtin cd "$sel" || builtin cd "$(dirname "$sel")" ;;
+    cd)
+      local _cd_target
+      if [[ -d "$sel" ]]; then
+        _cd_target="$sel"
+      else
+        # For workspace files or non-directory selections, cd to parent
+        _cd_target="${sel:h}"
+      fi
+      if [[ ! -d "$_cd_target" ]]; then
+        _pp_warn "directory not found: $_cd_target"
+        return 1
+      fi
+      builtin cd -- "$_cd_target" || { _pp_warn "cd failed: $_cd_target"; return 1; }
+      ;;
     custom) _pp_run_editor "$editor" "$sel" ;;
     *)      _pp_run_editor "$editor" "$sel" ;;
   esac
