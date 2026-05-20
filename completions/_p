@@ -1,0 +1,19 @@
+#compdef p
+
+_p() {
+  local -a subcommands
+  subcommands=(
+    'config:Run config wizard (interactive setup)'
+    'doctor:Validate config and dependencies'
+    'reload:Reload plugin functions after config change'
+    'help:Show help'
+  )
+
+  _arguments -s \
+    '-d[cd into project instead of opening in editor]' \
+    '-e[Override editor for this invocation]:editor:(code codium idea cursor windsurf nvim vim)' \
+    '--help[Show help]' \
+    '1:subcommand:((${subcommands[@]}))'
+}
+
+_p "$@"
