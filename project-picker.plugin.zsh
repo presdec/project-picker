@@ -4,6 +4,15 @@
 unsetopt xtrace 2>/dev/null || true
 unsetopt verbose 2>/dev/null || true
 set +x +v 2>/dev/null || true
+
+# Capture plugin directory at source time (works with oh-my-zsh, prezto, zinit, manual source)
+typeset -g __PP_PLUGIN_DIR="${${(%):-%x}:A:h}"
+
+# Add completions dir to fpath so _ppicker and _p are found without manual setup
+if [[ -d "${__PP_PLUGIN_DIR}/completions" ]] && (( ! ${fpath[(I)${__PP_PLUGIN_DIR}/completions]} )); then
+  fpath=("${__PP_PLUGIN_DIR}/completions" $fpath)
+fi
+
 typeset -g PP_CACHE_TTL_MIN=10
 typeset -g PP_DEFAULT_EDITOR=code
 typeset -g PP_PREVIEW=tree
@@ -508,24 +517,19 @@ _pp_help() {
 
 # Reloader and CLI bridge
 p_reload() {
-  local self
-  self="${(%):-%N}"
-  if [[ -r "$self" ]]; then
-    { emulate -L zsh; setopt localoptions; unsetopt xtrace verbose; source "$self"; } >/dev/null 2>&1
-  else
-    { emulate -L zsh; setopt localoptions; unsetopt xtrace verbose; source "$PP_CONFIG_FILE:h/../project-picker.plugin.zsh"; } >/dev/null 2>&1
+  local self="${__PP_PLUGIN_DIR}/project-picker.plugin.zsh"
+  if [[ ! -r "$self" ]]; then
+    _pp_warn "cannot find plugin file: $self"
+    return 1
   fi
+  { emulate -L zsh; setopt localoptions; unsetopt xtrace verbose; source "$self"; } >/dev/null 2>&1
   print -r -- "Project Picker plugin reloaded."
 }
 p_doctor() {
-  local plugin_dir
-  plugin_dir="${0:A:h}"
-  command zsh "$plugin_dir/bin/ppicker" doctor
+  command zsh "${__PP_PLUGIN_DIR}/bin/ppicker" doctor
 }
 p_config() {
-  local plugin_dir
-  plugin_dir="${0:A:h}"
-  command zsh "$plugin_dir/bin/ppicker" init
+  command zsh "${__PP_PLUGIN_DIR}/bin/ppicker" init
 }
 
 # Core Actions
