@@ -100,14 +100,14 @@ jobs:
           export PP_FZF_FILTER=audio
           sel="$(_pp_pick_from_list "$ROOT/personal/audiobook-player-sync" "$ROOT/personal/another-project")"
           test "$sel" = "$ROOT/personal/audiobook-player-sync"
-          # p<key> -t should cd into selection
+          # p<key> -d should cd into selection
           export PP_FZF_FILTER=audio
-          pp -t
+          pp -d
           test "$PWD" = "$ROOT/personal/audiobook-player-sync"
-          # p -t with all scope (via stdin)
+          # p -d with all scope (via stdin)
           cd "$RUNNER_TEMP"
           export PP_FZF_FILTER=level1
-          print -r -- all | p -t
+          print -r -- all | p -d
           test "$PWD" = "$ROOT/work/level1"
           # Log file should contain entries
           test -s "$PP_LOG_FILE"

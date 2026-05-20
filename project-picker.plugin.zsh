@@ -509,7 +509,7 @@ _pp_help() {
   print -r -- "  p doctor                Validate config and dependencies"
   print -r -- "  p reload                Reload config and regenerate plugin functions"
   print -r -- "Options:"
-  print -r -- "  -t                      cd into project instead of opening"
+  print -r -- "  -d                      cd into project instead of opening"
   print -r -- "  -e <editor>             Override editor (code|idea|cursor|windsurf|nvim|vim|codium|custom:/path)"
   print -r -- "  --help                  Show this help"
   print -r -- "Config: ${PP_CONFIG_FILE}"
@@ -565,9 +565,9 @@ p() {
 
   local action="open" editor="" key="" OPTIND opt
   OPTERR=0
-  while getopts "te:" opt; do
+  while getopts "de:" opt; do
     case "$opt" in
-      t) action="cd" ;;
+      d) action="cd" ;;
       e) editor="$OPTARG" ;;
       \?) ;;  # ignore unknown short opts
     esac
@@ -646,7 +646,7 @@ p$k() {
   _pp_load_toml
   local action=\"open\" editor=\"\" OPTIND opt
   OPTERR=0
-  while getopts \"te:\" opt; do case \"\$opt\" in t) action=\"cd\";; e) editor=\"\$OPTARG\";; \\?) ;; esac; done
+  while getopts \"de:\" opt; do case \"\$opt\" in d) action=\"cd\";; e) editor=\"\$OPTARG\";; \\?) ;; esac; done
   shift \$((OPTIND-1))
   _pp_bootstrap_fs
   local cache=\"\$(_pp_build_cache_for_key $k)\"
@@ -675,7 +675,7 @@ p${k}l() {
   _pp_load_toml
   local action=\"open\" editor=\"\" OPTIND opt
   OPTERR=0
-  while getopts \"te:\" opt; do case \"\$opt\" in t) action=\"cd\";; e) editor=\"\$OPTARG\";; \\?) ;; esac; done
+  while getopts \"de:\" opt; do case \"\$opt\" in d) action=\"cd\";; e) editor=\"\$OPTARG\";; \\?) ;; esac; done
   shift \$((OPTIND-1))
   _pp_bootstrap_fs
   local f=\"\$(_pp_last $k)\"
