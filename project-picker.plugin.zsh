@@ -86,6 +86,14 @@ _pp_is_cache_stale() {
   ttl=$(( ttl_min * 60 ))
   (( now - mt >= ttl )) && return 0 || return 1
 }
+_pp_config_newer_than_cache() {
+  local cache="$1"
+  [[ ! -f "$PP_CONFIG_FILE" || ! -f "$cache" ]] && return 1
+  local cfg_mt cache_mt
+  cfg_mt="$(_pp_file_mtime_epoch "$PP_CONFIG_FILE")"
+  cache_mt="$(_pp_file_mtime_epoch "$cache")"
+  (( cfg_mt > cache_mt ))
+}
 
 _pp_icon_for() { case "$1" in cd) echo "📂";; custom) echo "🚀";; *) echo "🗂";; esac; }
 _pp_label_for_action() { local a="$1" e="$2"; case "$a" in cd) echo cd;; custom) echo "${e:t:-editor}";; *) echo "VS Code";; esac; }
@@ -328,7 +336,7 @@ _pp_build_cache_for_key() {
   local incws="${PP_SCOPE_INCLUDE_WS[$key]:-$PP_INCLUDE_WORKSPACES}"
   local excludes="${PP_SCOPE_EXCLUDES[$key]:-$PP_EXCLUDES}"
 
-  if _pp_is_cache_stale "$cache" "$PP_CACHE_TTL_MIN"; then
+  if _pp_is_cache_stale "$cache" "$PP_CACHE_TTL_MIN" || _pp_config_newer_than_cache "$cache"; then
     : >| "$cache"
     local paths="${PP_SCOPE_PATHS[$key]}"
     local r; local IFS=:
@@ -344,7 +352,7 @@ _pp_build_cache_all() {
   # Ensure cache dir and log file exist before writing
   _pp_bootstrap_fs
   local cache="$(_pp_cache all)"
-  if _pp_is_cache_stale "$cache" "$PP_CACHE_TTL_MIN"; then
+  if _pp_is_cache_stale "$cache" "$PP_CACHE_TTL_MIN" || _pp_config_newer_than_cache "$cache"; then
     : >| "$cache"
     local k
     for k in "${(@k)PP_SCOPE_PATHS}"; do
