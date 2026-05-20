@@ -95,6 +95,11 @@ Then run `p config` to set up scopes.
 - `p<key>` — pick in a specific scope (e.g. `pw`, `pp`, `py`, `js`)
 - `p<key>l` — open last in scope (e.g. `pwl`, `ppl`, `pyl`, `jsl`)
 
+Options:
+  -d                      cd into project instead of opening in editor
+  -e <editor>             Override editor (code|idea|cursor|windsurf|nvim|vim|codium|custom:/path)
+  --help                  Show this help
+
 ## Configuration
 
 - Config file: `$XDG_CONFIG_HOME/project-picker/config.toml` or `$HOME/.config/project-picker/config.toml`
