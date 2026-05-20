@@ -23,6 +23,7 @@ typeset -g PP_CACHE_DIR="${PP_CACHE_DIR:-$HOME/.cache/project-picker}"
 typeset -g PP_LOG_FILE="${PP_LOG_FILE:-${PP_CACHE_DIR}/history.log}"
 typeset -g PP_CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/project-picker/config.toml"
 typeset -g PP_HISTORY_MAX_LINES=1000
+typeset -ga PP_DEFINED_SCOPE_CMDS
 
 # --- helpers, colors, and preview shell ---
 # Colors for announcements (safe defaults if terminal doesn’t support)
@@ -177,7 +178,7 @@ _pp_log() {
   printf '%s\t%s\t%s\t%s\n' "$ts" "$1" "$2" "$3" >> "$PP_LOG_FILE"
   local max_lines="${PP_HISTORY_MAX_LINES:-1000}"
   local cur_lines
-  cur_lines=$(wc -l < "$PP_LOG_FILE" 2>/dev/null)
+  cur_lines=$(wc -l < "$PP_LOG_FILE" 2>/dev/null | tr -d ' \t')
   if [[ -n "$cur_lines" && "$cur_lines" -gt "$max_lines" ]]; then
     tail -n "$max_lines" "$PP_LOG_FILE" > "$PP_LOG_FILE.tmp" && mv "$PP_LOG_FILE.tmp" "$PP_LOG_FILE"
   fi
@@ -236,6 +237,9 @@ _pp_load_toml() {
       fi
       if [[ "$section" == scopes.* ]]; then
         local skey="${section#scopes.}"
+        skey="${skey//[^a-zA-Z0-9]/}"
+        skey="${skey:l}"
+        [[ -z "$skey" ]] && continue
         case "$k" in
           label)   PP_SCOPE_LABELS[$skey]="${v//\"/}" ;;
           editor)  PP_SCOPE_EDITORS[$skey]="${v//\"/}" ;;
