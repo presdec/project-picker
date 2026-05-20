@@ -23,6 +23,9 @@ typeset -g PP_CLR_BOLD=$'\e[1m'
 typeset -g PP_CLR_GREEN=$'\e[32m'
 typeset -g PP_CLR_BLUE=$'\e[34m'
 
+_pp_warn() { print -r -- "project-picker: $*" >&2; }
+_pp_die()  { print -r -- "project-picker: error: $*" >&2; }
+
 # Shell used for fzf preview scripts (keep minimal and universal)
 typeset -g PP_PREVIEW_SHELL="${PP_PREVIEW_SHELL:-/bin/sh}"
 
