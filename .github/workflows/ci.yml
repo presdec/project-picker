@@ -47,6 +47,9 @@ jobs:
       - name: Syntax check plugin
         run: zsh -n project-picker.plugin.zsh
 
+      - name: Syntax check bin/ppicker
+        run: zsh -n bin/ppicker
+
       - name: Non-interactive picker smoke test (PP_FZF_FILTER)
         run: |
           # Prepare two fake projects
