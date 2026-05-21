@@ -114,7 +114,21 @@ _pp_config_newer_than_cache() {
 }
 
 _pp_icon_for() { case "$1" in cd) echo "📂";; custom) echo "🚀";; *) echo "🗂";; esac; }
-_pp_label_for_action() { local a="$1" e="$2"; case "$a" in cd) echo cd;; custom) echo "${e:t:-editor}";; *) echo "VS Code";; esac; }
+_pp_label_for_action() {
+  local a="$1" e="$2"
+  case "$a" in
+    cd) echo "cd" ;;
+    *)
+      case "$e" in
+        custom:*) echo "${e#custom:}" ;;
+        code|cursor|windsurf|codium) echo "$e" ;;
+        nvim|vim)                    echo "$e" ;;
+        idea*)                       echo "IntelliJ" ;;
+        *)                           echo "VS Code" ;;
+      esac
+      ;;
+  esac
+}
 _pp_qpath() {
   local path_in="$1" leaf
   leaf="${path_in:t}"
