@@ -9,7 +9,9 @@
 
 Jump between repos instantly from your terminal. Supports multiple scopes, fuzzy search, and editor integration.
 
-![Screencast_20250917_082517 (1)](https://github.com/user-attachments/assets/cbf8c885-a6b5-483a-b70b-b9a5ef27f849)
+![Full flow](https://github.com/presdec/project-picker/releases/download/v2.0.0/full-flow.gif)
+
+> See the [visual walkthrough](DEMOS.md) for demos of every feature.
 
 ## Features
 
@@ -81,6 +83,8 @@ Then run `p --config` to set up scopes.
    # or for a scope: pw, pp, etc.
    # open last: pwl, ppl
    ```
+
+![Scope picker](https://github.com/presdec/project-picker/releases/download/v2.0.0/scope-filter.gif)
 
 ## Commands
 
@@ -240,7 +244,7 @@ excludes = ["node_modules", ".git", "dist"]
 - [fzf](https://github.com/junegunn/fzf) — fuzzy finder
 - [tree](http://mama.indstate.edu/users/ice/tree/) — directory preview
 
-If missing, falls back to built-in alternatives.
+If missing, falls back to built-in alternatives. See the [no-deps demo](DEMOS.md#works-without-optional-dependencies).
 
 ## Continuous Integration
 
