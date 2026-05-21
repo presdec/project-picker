@@ -790,7 +790,7 @@ cmd_init() {
   } >| "$CONFIG_FILE"
 
   print -r -- "${GREEN}Config written: $CONFIG_FILE${RESET}"
-  print -r -- "${CYAN}Next: run 'p reload' to apply changes, or 'p doctor' to verify.${RESET}"
+  print -r -- "${CYAN}Next: run 'p --reload' to apply changes, or 'p --doctor' to verify.${RESET}"
   # Restore xtrace if it was enabled
   if (( __had_xtrace )); then setopt xtrace; fi
 }
@@ -878,7 +878,7 @@ doctor_config() {
   set +x +v 2>/dev/null || true
   if [[ ! -f "$CONFIG_FILE" ]]; then
     err "No config file at $CONFIG_FILE"
-    note "Run: p config"
+    note "Run: p --config"
     return 1
   fi
   note "Config: $CONFIG_FILE"
@@ -949,7 +949,7 @@ ppicker ${VERSION}
 Usage:
   ppicker init          Interactive wizard to create ${CONFIG_FILE}
   ppicker doctor        Validate config and show dependency fallbacks
-  ppicker reload        Reload config and regenerate plugin functions (run 'p reload' in your shell to refresh plugin)
+  ppicker reload        Backend reload guidance for scripts (run 'p --reload' in your shell to refresh plugin)
   ppicker --help        Show this help
   ppicker --version     Show version
 EOF

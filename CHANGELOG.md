@@ -37,14 +37,14 @@ All notable changes to this project will be documented in this file.
 - Log file is trimmed to newest N lines if exceeded
 - Doctor reports current history_max_lines value
 - Initial public release
-- Interactive config wizard (`ppicker init`, `p config`)
+- Interactive config wizard (`p --config`, with `ppicker init` for scripts)
 - Per-scope and global TOML config
 - Auto-generated scope commands (`p`, `p<key>`, `p<key>l`, etc.)
 - Editor/preview integration
 - Optional dependencies: fd, fzf, tree
 - Zsh completion for CLI
-- Reload command (`ppicker reload`, `p reload`)
-- Doctor command for config validation
+- Reload command (`p --reload`, with `ppicker reload` for scripts)
+- Doctor command for config validation (`p --doctor`)
 - Rich README with schema and examples
 
 ### Changed

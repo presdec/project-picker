@@ -4,6 +4,7 @@ _p() {
   local -a subcommands
   subcommands=(
     'config:Run config wizard (interactive setup)'
+    'init:Run config wizard (compatibility alias)'
     'doctor:Validate config and dependencies'
     'reload:Reload plugin functions after config change'
     'help:Show help'
@@ -11,7 +12,10 @@ _p() {
 
   _arguments -s \
     '-d[cd into project instead of opening in editor]' \
-    '-e[Override editor for this invocation]:editor:(code codium idea cursor windsurf nvim vim)' \
+    '-e[Override editor for this invocation]:editor:(code codium idea cursor windsurf nvim vim custom:/path)' \
+    '--config[Run config wizard]' \
+    '--doctor[Validate config and dependencies]' \
+    '--reload[Reload plugin functions after config change]' \
     '--help[Show help]' \
     '1:subcommand:((${subcommands[@]}))'
 }

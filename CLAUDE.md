@@ -26,7 +26,7 @@ zsh bin/ppicker --version
 p                   # pick from all scopes
 p<key>              # pick in scope (pw, pp, etc.)
 p<key>l             # open last in scope
-p config / p doctor / p reload
+p --config / p --doctor / p --reload
 ```
 
 ## Testing
@@ -66,5 +66,5 @@ zsh bin/ppicker doctor
 - `_pp_list_projects_one_root` — `fd` or `find` fallback
 - `_pp_pick_from_list` — `fzf` or menu fallback
 - `_pp_define_scope_cmds` — dynamically generates `p<key>` / `p<key>l` functions
-- `p()` — main entry point
-- `bin/ppicker` — standalone CLI (init wizard, doctor, reload)
+- `p()` — main entry point and canonical user-facing command
+- `bin/ppicker` — standalone/backend CLI (init wizard, doctor, reload)

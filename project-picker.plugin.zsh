@@ -793,14 +793,59 @@ _pp_help() {
   print -r -- "  p<key> [options]        Pick in scope (e.g. pw, pp, pr, pt)"
   print -r -- "  p<key>l [options]       Open last in scope (e.g. pwl, ppl, prl)"
   print -r -- "  ppl, pwl                Open last personal/work project (if scopes 'p' and 'w' exist)"
-  print -r -- "  p config                Run config wizard (interactive setup)"
-  print -r -- "  p doctor                Validate config and dependencies"
-  print -r -- "  p reload                Reload config and regenerate plugin functions"
+  print -r -- "  p --config              Run config wizard (interactive setup)"
+  print -r -- "  p --doctor              Validate config and dependencies"
+  print -r -- "  p --reload              Reload config and regenerate plugin functions"
   print -r -- "Options:"
   print -r -- "  -d                      cd into project instead of opening"
   print -r -- "  -e <editor>             Override editor (code|idea|cursor|windsurf|nvim|vim|codium|custom:/path)"
+  print -r -- "  --config                Run config wizard"
+  print -r -- "  --doctor                Validate config and dependencies"
+  print -r -- "  --reload                Reload config and regenerate plugin functions"
   print -r -- "  --help                  Show this help"
   print -r -- "Config: ${PP_CONFIG_FILE}"
+}
+
+_pp_parse_picker_args() {
+  local __action_var="$1" __editor_var="$2"
+  shift 2
+  local action="open" editor=""
+  while (( $# )); do
+    case "$1" in
+      -d)
+        action="cd"
+        shift
+        ;;
+      -e)
+        local opt_name="$1"
+        shift
+        if (( ! $# )); then
+          _pp_die "missing editor for $opt_name"
+          return 2
+        fi
+        editor="$1"
+        shift
+        ;;
+      --help|-h)
+        _pp_help
+        return 10
+        ;;
+      --)
+        shift
+        break
+        ;;
+      -*)
+        _pp_die "unknown option: $1"
+        return 2
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+  typeset -g __PP_PARSED_ACTION="$action"
+  typeset -g __PP_PARSED_EDITOR="$editor"
+  return 0
 }
 
 # Reloader and CLI bridge
@@ -849,6 +894,13 @@ p() {
   setopt localoptions no_auto_name_dirs
   unsetopt xtrace verbose
 
+  case "$1" in
+    --help|-h|help)     _pp_help; return ;;
+    --config|config|init) p_config; return ;;
+    --doctor|doctor)   p_doctor; return ;;
+    --reload|reload)   p_reload; return ;;
+  esac
+
   local __pp_qd=${#__PP_QSTACK_OUT[@]}
   _pp_quiet_push
   {
@@ -860,14 +912,6 @@ p() {
   }
   (( ${#keys[@]} )) || { _pp_die "no scopes configured"; return 1; }
 
-  # Handle subcommands/help BEFORE getopts so --help is not eaten
-  case "$1" in
-    help|--help|-h) _pp_help; return ;;
-    reload)         p_reload; return ;;
-    doctor)         p_doctor; return ;;
-    config)         p_config; return ;;
-  esac
-
   # Auto-setup when no config exists
   if [[ ! -f "$PP_CONFIG_FILE" ]]; then
     print -r -- "No config found at $PP_CONFIG_FILE. Starting setup wizard..."
@@ -875,16 +919,13 @@ p() {
     return
   fi
 
-  local action="open" editor="" key="" OPTIND opt
-  OPTERR=0
-  while getopts "de:" opt; do
-    case "$opt" in
-      d) action="cd" ;;
-      e) editor="$OPTARG" ;;
-      \?) ;;  # ignore unknown short opts
-    esac
-  done
-  shift $((OPTIND-1))
+  local action="open" editor="" key=""
+  _pp_parse_picker_args action editor "$@"
+  local _pp_parse_rc=$?
+  (( _pp_parse_rc == 10 )) && return 0
+  (( _pp_parse_rc == 0 )) || return $_pp_parse_rc
+  action="$__PP_PARSED_ACTION"
+  editor="$__PP_PARSED_EDITOR"
 
   # Ensure cache dir + log file exist (prevents grep error in preview)
   _pp_bootstrap_fs
@@ -975,10 +1016,13 @@ p$k() {
   } always {
     _pp_quiet_restore_to \"\$__pp_qd\"
   }
-  local action=\"open\" editor=\"\" OPTIND opt
-  OPTERR=0
-  while getopts \"de:\" opt; do case \"\$opt\" in d) action=\"cd\";; e) editor=\"\$OPTARG\";; \\?) ;; esac; done
-  shift \$((OPTIND-1))
+  local action=\"open\" editor=\"\"
+  _pp_parse_picker_args action editor \"\$@\"
+  local _pp_parse_rc=\$?
+  (( _pp_parse_rc == 10 )) && return 0
+  (( _pp_parse_rc == 0 )) || return \$_pp_parse_rc
+  action=\"\$__PP_PARSED_ACTION\"
+  editor=\"\$__PP_PARSED_EDITOR\"
   _pp_bootstrap_fs
   __pp_qd=\${#__PP_QSTACK_OUT[@]}
   _pp_quiet_push
@@ -1018,10 +1062,13 @@ p${k}l() {
   } always {
     _pp_quiet_restore_to \"\$__pp_qd\"
   }
-  local action=\"open\" editor=\"\" OPTIND opt
-  OPTERR=0
-  while getopts \"de:\" opt; do case \"\$opt\" in d) action=\"cd\";; e) editor=\"\$OPTARG\";; \\?) ;; esac; done
-  shift \$((OPTIND-1))
+  local action=\"open\" editor=\"\"
+  _pp_parse_picker_args action editor \"\$@\"
+  local _pp_parse_rc=\$?
+  (( _pp_parse_rc == 10 )) && return 0
+  (( _pp_parse_rc == 0 )) || return \$_pp_parse_rc
+  action=\"\$__PP_PARSED_ACTION\"
+  editor=\"\$__PP_PARSED_EDITOR\"
   _pp_bootstrap_fs
   local f=\"\$(_pp_last $k)\"
   [[ -s \"\$f\" ]] || { _pp_warn \"No last \${PP_SCOPE_LABELS[$k]:-$k} project yet.\"; return 1; }

@@ -112,6 +112,12 @@ jobs:
           export PP_FZF_FILTER=level1
           print -r -- all | p -d
           test "$PWD" = "$ROOT/work/level1"
+          # Canonical management flags and compatibility aliases
+          p --help | grep -F -- "p --config"
+          p --doctor
+          p --reload
+          p doctor
+          p reload
           # Log file should contain entries
           test -s "$PP_LOG_FILE"
           grep -F -- "$ROOT/work/level1" "$PP_LOG_FILE" >/dev/null
