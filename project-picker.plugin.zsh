@@ -395,7 +395,14 @@ _pp_list_projects_one_root() {
     local -a prune_expr
     local x
     for x in ${(s.:.)excludes}; do
-      [[ -n "$x" ]] && prune_expr+=( -name "$x" -o )
+      [[ -n "$x" ]] || continue
+      x="${x#/}"
+      x="${x%/}"
+      if [[ "$x" == */* ]]; then
+        prune_expr+=( -path "*/$x" -o )
+      else
+        prune_expr+=( -name "$x" -o )
+      fi
     done
     (( ${#prune_expr[@]} )) && prune_expr[-1]=()
 
@@ -807,8 +814,6 @@ _pp_help() {
 }
 
 _pp_parse_picker_args() {
-  local __action_var="$1" __editor_var="$2"
-  shift 2
   local action="open" editor=""
   while (( $# )); do
     case "$1" in
@@ -920,7 +925,7 @@ p() {
   fi
 
   local action="open" editor="" key=""
-  _pp_parse_picker_args action editor "$@"
+  _pp_parse_picker_args "$@"
   local _pp_parse_rc=$?
   (( _pp_parse_rc == 10 )) && return 0
   (( _pp_parse_rc == 0 )) || return $_pp_parse_rc
@@ -1017,7 +1022,7 @@ p$k() {
     _pp_quiet_restore_to \"\$__pp_qd\"
   }
   local action=\"open\" editor=\"\"
-  _pp_parse_picker_args action editor \"\$@\"
+  _pp_parse_picker_args \"\$@\"
   local _pp_parse_rc=\$?
   (( _pp_parse_rc == 10 )) && return 0
   (( _pp_parse_rc == 0 )) || return \$_pp_parse_rc
@@ -1063,7 +1068,7 @@ p${k}l() {
     _pp_quiet_restore_to \"\$__pp_qd\"
   }
   local action=\"open\" editor=\"\"
-  _pp_parse_picker_args action editor \"\$@\"
+  _pp_parse_picker_args \"\$@\"
   local _pp_parse_rc=\$?
   (( _pp_parse_rc == 10 )) && return 0
   (( _pp_parse_rc == 0 )) || return \$_pp_parse_rc

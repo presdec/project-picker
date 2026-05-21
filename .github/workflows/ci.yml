@@ -90,6 +90,11 @@ jobs:
           __CFG__
           source project-picker.plugin.zsh
           _pp_bootstrap_fs
+          # Shared picker argument parser
+          _pp_parse_picker_args -d -e custom:true
+          test "$__PP_PARSED_ACTION" = cd
+          test "$__PP_PARSED_EDITOR" = custom:true
+          if _pp_parse_picker_args --editor custom:true 2>/dev/null; then echo "unexpected --editor support" >&2; exit 1; fi
           # Build caches
           cache_p="$(_pp_build_cache_for_key p)"
           cache_w="$(_pp_build_cache_for_key w)"
@@ -98,6 +103,13 @@ jobs:
           grep -F -- "$ROOT/personal/personal-hub.code-workspace" "$cache_p"
           if grep -F -- "node_modules" "$cache_p"; then echo "unexpected node_modules in cache" >&2; exit 1; fi
           if grep -F -- "$ROOT/work/level1/level2" "$cache_w"; then echo "unexpected level2 in cache" >&2; exit 1; fi
+          # find fallback should honor nested exclude patterns when fd/fdfind is unavailable
+          mkdir -p "$ROOT/find-fallback/app" "$ROOT/find-fallback/vendor/bundle/gem" "$ROOT/find-fallback/android/.gradle/cache"
+          _pp_fd_cmd() { return 1; }
+          find_fallback_out="$(_pp_list_projects_one_root "$ROOT/find-fallback" 5 false "vendor/bundle:android/.gradle")"
+          print -r -- "$find_fallback_out" | grep -F -- "$ROOT/find-fallback/app"
+          if print -r -- "$find_fallback_out" | grep -F -- "vendor/bundle"; then echo "unexpected vendor/bundle in find fallback output" >&2; exit 1; fi
+          if print -r -- "$find_fallback_out" | grep -F -- "android/.gradle"; then echo "unexpected android/.gradle in find fallback output" >&2; exit 1; fi
           # Tree preview branch exercised with non-interactive filter
           export PP_PREVIEW=tree
           export PP_FZF_FILTER=audio
