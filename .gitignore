@@ -10,6 +10,9 @@
 # OS
 .DS_Store
 Thumbs.db
+
+# Demo materials
+demo/
 .agents/
 AGENTS.md
 CLAUDE.md
