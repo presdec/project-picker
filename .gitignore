@@ -7,9 +7,6 @@
 # Codex
 .codex/
 
-# Local planning docs
-plan.md
-
 # OS
 .DS_Store
 Thumbs.db

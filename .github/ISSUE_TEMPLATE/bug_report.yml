@@ -1,0 +1,45 @@
+name: Bug report
+description: Report something that is broken or behaving unexpectedly.
+title: "Bug: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include commands, config snippets, and relevant paths when possible.
+      placeholder: |
+        1. Configure ...
+        2. Run ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: zsh-version
+    attributes:
+      label: zsh version
+      placeholder: "zsh 5.9"
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      placeholder: "Linux, macOS, WSL, MSYS2, Cygwin, Git Bash"
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant config
+      description: Redact private paths if needed.
+      render: toml

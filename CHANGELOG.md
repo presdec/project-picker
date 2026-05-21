@@ -16,7 +16,6 @@ All notable changes to this project will be documented in this file.
 - `p` zsh completion for canonical management flags, compatibility subcommands, `-d`, and `-e <editor>`.
 - `p init` compatibility alias for the config wizard.
 - `fdfind` fallback for Debian/Ubuntu systems where `fd` is installed under that name.
-- Local project context for agents, including `AGENTS.md`, `RTK.md`, `CLAUDE.md`, skills metadata, and repository-specific assistant skills.
 
 ### Changed
 
@@ -25,6 +24,7 @@ All notable changes to this project will be documented in this file.
 - Improved config wizard validation for scope keys, duplicate scopes, TTL, depth, and path selection.
 - Expanded README installation guidance for oh-my-zsh, zinit, manual installs, command usage, TOML schema, exclude presets, and CI behavior.
 - Added README badges for CI, release workflow, latest release, license, zsh, and platform support.
+- Added contributor, security, pull request, and issue templates.
 - Broadened CI smoke coverage for plugin syntax, CLI syntax, cache behavior, excludes, depth handling, workspace files, `p -d`, canonical management flags, compatibility aliases, and oh-my-zsh custom plugin loading.
 - Updated release artifacts to include both `p` and `ppicker` completions plus the changelog.
 
