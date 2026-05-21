@@ -9,12 +9,9 @@ _ppicker() {
     '--help:Show help'
     '--version:Show version'
   )
-  local -a opts
-  opts=(
-    '--help[Show help]'
-    '--version[Show version]'
-  )
   _arguments \
+    '--help[Show help]' \
+    '--version[Show version]' \
     '1:subcommand:((init doctor reload --help --version))' \
     '*:options:->opts'
   case $words[1] in
