@@ -1,0 +1,15 @@
+# Claude Code local config
+.claude/
+
+# Caveman mode
+.caveman/
+
+# Codex
+.codex/
+
+# Local planning docs
+plan.md
+
+# OS
+.DS_Store
+Thumbs.db

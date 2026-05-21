@@ -103,8 +103,29 @@ Options:
 ## Configuration
 
 - Config file: `$XDG_CONFIG_HOME/project-picker/config.toml` or `$HOME/.config/project-picker/config.toml`
-- Use `p config` or `ppicker init` to set up scopes, editors, excludes, etc.
+- Use `p config` or `ppicker init` to set up scopes, editors, one or more paths per scope, excludes, etc.
 - `history_max_lines` (in `[global]`) sets the maximum number of lines kept in the history log (default: 1000). If the log exceeds this, it is trimmed to the newest N lines automatically.
+- During setup, project type markers are detected under each scope path and used to suggest exclude presets. Presets can also be combined manually per scope, such as `web,python`, `rust`, `all`, `none`, or `custom`. Presets only write a normal `excludes = [...]` array to the config.
+
+### Detected exclude presets
+
+The setup wizard does a shallow scan under each scope path and suggests exclude presets from common project markers. Detection is advisory: press Enter to accept the suggestion, or type any preset combo such as `default,web,python`, `none`, `all`, or `custom`.
+
+| Preset | Markers |
+| --- | --- |
+| `web` | `package.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lockb` |
+| `python` | `pyproject.toml`, `requirements.txt`, `setup.py`, `uv.lock` |
+| `rust` | `Cargo.toml` |
+| `go` | `go.mod` |
+| `jvm` | `pom.xml`, `build.gradle`, `build.gradle.kts`, `settings.gradle`, `settings.gradle.kts` |
+| `dotnet` | `*.csproj`, `*.sln` |
+| `ruby` | `Gemfile` |
+| `php` | `composer.json` |
+| `cpp` | `CMakeLists.txt` |
+| `elixir` | `mix.exs` |
+| `dart` | `pubspec.yaml` |
+| `swift` | `Package.swift` |
+| `mobile` | `android/build.gradle`, `android/build.gradle.kts`, `ios/Pods` |
 
 ### Environment variables
 
@@ -168,6 +189,7 @@ excludes = ["node_modules", ".git", "dist"]
 
 - `editor`, `depth`, `excludes`, and `include_workspaces` can be set per-scope.
 - If omitted, global values are used.
+- Use `excludes = []` to explicitly disable excludes for a scope.
 - `paths` is always required per-scope (array of directories).
 
 ### Example: Multi-language, multi-scope config
@@ -204,7 +226,7 @@ excludes = ["node_modules", ".git", "dist"]
 
 ## Optional Dependencies
 
-- [fd](https://github.com/sharkdp/fd) — fast file search
+- [fd](https://github.com/sharkdp/fd) or `fdfind` from Debian/Ubuntu `fd-find` — fast file search
 - [fzf](https://github.com/junegunn/fzf) — fuzzy finder
 - [tree](http://mama.indstate.edu/users/ice/tree/) — directory preview
 
