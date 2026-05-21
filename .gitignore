@@ -13,3 +13,9 @@ plan.md
 # OS
 .DS_Store
 Thumbs.db
+.agents/
+AGENTS.md
+CLAUDE.md
+RTK.md
+plan.md
+skills-lock.json
