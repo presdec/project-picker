@@ -131,3 +131,20 @@ jobs:
           # Create config non-interactively, then validate
           zsh bin/ppicker init --defaults || { echo 'ppicker init failed' >&2; exit 1; }
           zsh bin/ppicker doctor || { echo 'ppicker doctor failed' >&2; exit 1; }
+
+      - name: oh-my-zsh custom plugin smoke test
+        run: |
+          export ZSH_CUSTOM="$RUNNER_TEMP/oh-my-zsh/custom"
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/omz-config"
+          export PP_CACHE_DIR="$RUNNER_TEMP/omz-cache"
+          export PPICKER_SCOPE_PATH="$RUNNER_TEMP/omz-work"
+          export PPICKER_SCOPE_LABEL=work
+          plugin_dir="$ZSH_CUSTOM/plugins/project-picker"
+          mkdir -p "$plugin_dir" "$XDG_CONFIG_HOME/project-picker" "$PPICKER_SCOPE_PATH"
+          cp -R project-picker.plugin.zsh bin completions "$plugin_dir/"
+          zsh "$plugin_dir/bin/ppicker" init --defaults
+          source "$plugin_dir/project-picker.plugin.zsh"
+          test "$__PP_PLUGIN_DIR" = "$plugin_dir"
+          (( ${fpath[(I)$plugin_dir/completions]} ))
+          p --help | grep -F -- "p --config"
+          p --doctor
